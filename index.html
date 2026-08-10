@@ -350,13 +350,26 @@ function buildParams(extra){
 function injectExploit(q){
     window.EXPLOIT_PARAMS = q;
     const s = document.createElement("script");
-    s.src = "exploit.js?_=" + Date.now();
+    s.src = "kernel-stubs.js?_=" + Date.now();
     s.onerror = () => {
-        addLog("[ERR] cannot load exploit.js");
+        addLog("[ERR] cannot load kernel-stubs.js");
         exploitLoaded = false; isRunning = false;
         $("btnRun").classList.remove("running");
         $("btnRun").textContent = "▶ RUN";
         setProgress(0);
+    };
+    s.onload = () => {
+        addLog("[INFO] kernel-stubs.js loaded");
+        const e = document.createElement("script");
+        e.src = "exploit.js?_=" + Date.now();
+        e.onerror = () => {
+            addLog("[ERR] cannot load exploit.js");
+            exploitLoaded = false; isRunning = false;
+            $("btnRun").classList.remove("running");
+            $("btnRun").textContent = "▶ RUN";
+            setProgress(0);
+        };
+        document.head.appendChild(e);
     };
     document.head.appendChild(s);
     addLog("[INFO] exploit.js injected");

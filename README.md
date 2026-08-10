@@ -113,18 +113,34 @@ python3 send_payload.py payloads/helloworld.js --host 192.168.1.50
 
 ### 📦 Payloads على الجهاز (بدون PC)
 
-بعد الـ RCE تظهر لوحة **On-device payloads** في الواجهة:
+بعد الـ RCE تظهر شبكة الـ payloads (أزرار كبيرة في الصف العلوي، تعمل عبر
+`window.ps5kern` والـ syscalls النظيفة — **لا crash**):
 
-- 🔔 **NOTIFY** — إرسال إشعار PS5 (نص حر) عبر `send_notification`
-- 🛰️ **TEST SYSCALLS** — بطارية syscalls نظيفة (pipe ×2 + close) — **إثبات تنفيذ
-  syscall حقيقي داخل الصندوق بدون kernel exploit ولا crash**
-- ℹ️ **REPORT** — تفريغ info + scan + ميزانية الذاكرة إلى السجل
-- 💥 **COMMIT RCE** — تشغيل سلسلة ROP (إشعار + crash) يدويًا
-- 📡 **PC REMOTE** — جلب `remote.js` وتفعيل REPL عبر WebSocket (يحتاج PC:
-  `ws_server.py` على 50000 + خادم 8080) — اختياري، خارج الوضع الافتراضي
-- ⚡ **RUN PAYLOAD** — تنفيذ أي كود JS في صندوق المتصفح مباشرة
-  (`window.rwView` / `scratchWords` / `kernelBase` … مكشوفة)،
-  مع زر تحميل `payloads/notification.js` محليًا
+- ℹ️ **SYSINFO** — `pid()`/`pipe()`/`tid()` + تقرير stubs → إشعار PS5 + سجل
+- 🗑️ **FS PROBE** — حذف `ApplicationCache.db*` (مستخدمون 0-2) عبر `unlink()`
+- 📋 **REPORT** — bases + scan + ميزانية الذاكرة إلى السجل
+- 🛰️ **TEST SYSCALLS** — بطارية نظيفة (pipe ×2 + close) — إثبات تنفيذ syscall
+  حقيقي بدون kernel exploit
+- 👋 **HELLO WORLD** — self-test
+- 📊 **DEEPSLOP INFO** — تقرير `deepslopInfo` + `deepslopScan` + الذاكرة
+- 📡 **PC REMOTE** — اختياري: جلب `remote.js` و REPL عبر WebSocket
+  (`ws_server.py` على 50000 + خادم 8080)
+- 💥 **COMMIT RCE** — سلسلة ROP (إشعار + crash) يدويًا
+
+وفي **ADVANCED**: ⚡ RUN PAYLOAD (تنفيذ أي كود JS مع `window.rwView`/
+`scratchWords`/`kernelBase` مكشوفة) + زر تحميل `payloads/notification.js` محليًا.
+
+### 🧪 اختبار الماسح (`tools/scan-test.js`)
+
+```
+node tools/scan-test.js
+```
+
+يبني libkernel dump اصطناعيًا لكل FW من الـ 23 مع getpid/close في أوفستات
+`offsets/offsets.json` + stubs إضافية وأفخاخ (رقم غير مشاهد / محاذاة خاطئة /
+عنوان خاطئ) ويركض **نفس** `kernel-stubs.js` الذي يستخدمه `exploit.js` —
+لا نسخة منفصلة. التزامن: غلاف `exploit.js` يستدعي الوحدة النقية، و Side
+effects (`deepslopStubs`/`mark`) تبقى في الغلاف.
 
 ---
 

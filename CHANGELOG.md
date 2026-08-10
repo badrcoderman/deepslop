@@ -5,6 +5,22 @@
 
 ---
 
+## 🧪 v1.2.2 — scanKernelStubs أصبح وحدة قابلة للاختبار + أول اختبار تنفيذي (2026-08-10)
+
+- **`kernel-stubs.js` (جديد)**: الماسح النقي لنمط stubs الكيرنل — بلا DOM ولا
+  آثار جانبية. `exploit.js` يستدعيه الآن (نفس السلوك تمامًا: نافذة ±0x20000،
+  محاذاة +0/+1 mod 16، cross-verify عبر gpe/cle، side effects `deepslopStubs`
+  و `mark` تبقى في الغلاف). أُزيلت `STUB_PATTERNS` المكررة من exploit.js.
+- **`tools/scan-test.js` (جديد)**: أول تشغيل **فعلي** لمنطق المسح — يبني
+  libkernel dump اصطناعيًا لكل FW من الـ 23 (09.00→13.60) مع getpid/close
+  مزروعين في أوفستات offsets.json + stubs إضافية (pipe/unlink/thr_self) +
+  أفخاخ (رقم غير مشاهد، محاذاة خاطئة، عنوان getpid خاطئ) ويتحقق أن الماسح
+  يجد المزروع ويقبل الأفخاخ — كلها تجتاز. + اختباران سلبيان (كيرنل فارغ →
+  verified=false، قراءة معطوبة → error). التشغيل: `node tools/scan-test.js`
+- **نتيجة الفحص**: فجوة gpe→cle ≤ نافذة المسح في كل FW — cross-verify ممكن
+  لكل الأجهزة المدرجة (لو تجاوزت أي FW النافذة لفشل verified تلقائيًا).
+- `injectExploit` يحمّل `kernel-stubs.js` قبل `exploit.js`.
+
 ## 🚀 v1.2.1 — إحياء الـ payloads الميتة + إصلاح Promise (2026-08-10)
 
 - **أزرار جديدة في الشبكة**: 👋 HELLO WORLD (`payloads/helloworld.js` — self-test)
