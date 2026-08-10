@@ -43,6 +43,25 @@ deepslop/
    `?fw=13.60` للتحكم اليدوي). `?go=1` يبدأ التشغيل تلقائيًا **بعد** تحميل
    الأوفستس (أُصلح سباق الجلب).
 
+## النشر على GitHub Pages (https://badrcoderman.github.io/deepslop/)
+
+المستودع عام مع Pages مفعّلة من `main` — الواجهة والأوفستس يُخدمان من الاستضافة
+دون خادم محلي:
+
+```
+PS5 browser → https://badrcoderman.github.io/deepslop/?go=1&fw=13.60
+```
+
+**تنبيه mixed-content**: صفحة https تمنع عادةً جلب موارد http غير آمنة. مسار
+البيانات (RCE) يبقى كما هو — `exploit.js` يجلب `remote.js` من `http://<PC>:8080`
+و`remote.js` يتصل بـ `ws://<PC>:50000`. على متصفحات WebKit القديمة (PS5) قد
+يُسمح بذلك، لكن إن فشل `REMOTE-JS-FETCH-FAIL` على جهازك:
+- شغّل خادم 8080 على جهازك مع ترويسة CORS:
+  `python3 -c "import http.server; ... "` (أو أي خادم يدعم
+  `Access-Control-Allow-Origin: *`)،
+- أو استخدم `http://<PC>:8080/` (النشر المحلي) بدل GitHub Pages — سلوك
+  same-origin كامل.
+
 ## الاستخدام
 
 ```
