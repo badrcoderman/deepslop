@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DEEPSLOP — PS5 WebKit Exploit Dashboard</title>
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+        --bg:#07070d; --panel:#0e1120; --panel2:#12162a; --line:#1e2440;
+        --txt:#d7dbea; --dim:#7a8099; --acc:#7c3aed; --acc2:#a855f7;
+        --ok:#4ade80; --warn:#facc15; --err:#f87171; --info:#60a5fa;
+        --mono:'Courier New',Courier,monospace; --ui:-apple-system,'Segoe UI',Arial,sans-serif;
+    }
+    html,body{height:100%;overflow:hidden}
+    body{
+        user-select:none;-webkit-user-select:none;
+        font-family:var(--ui);background:radial-gradient(1200px 700px at 70% -10%,#1c1140 0%,#0b0a18 55%,#07070d 100%);
+        color:var(--txt);display:flex;flex-direction:column;align-items:center;
+        justify-content:center;padding:16px;
+    }
+    #app{
+        width:min(1180px,98vw);height:min(92vh,820px);display:grid;
+        grid-template-rows:auto auto 1fr auto;
+        gap:10px;background:var(--panel);border:1px solid var(--line);
+        border-radius:16px;box-shadow:0 0 0 1px rgba(124,58,237,.15),0 24px 70px rgba(0,0,0,.65);
+        padding:14px 16px;overflow:hidden;
+    }
+    header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    #logo{font-weight:900;font-size:1.05rem;letter-spacing:2px;
+        background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+    #logo small{color:var(--dim);font-weight:400;letter-spacing:0}
+    .chip{font-family:var(--mono);font-size:.68rem;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
+    .chip.on{color:var(--ok);border-color:rgba(74,222,128,.4)}
+    .chip.warn{color:var(--warn);border-color:rgba(250,204,21,.4)}
+    #spacer{flex:1}
+    #fw{font-family:var(--mono);font-size:.8rem;color:var(--acc2);font-weight:700}
+    #controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .btn{
+        font-family:var(--ui);font-size:.78rem;font-weight:800;letter-spacing:.8px;
+        padding:9px 16px;border-radius:10px;border:1px solid var(--line);cursor:pointer;
+        background:linear-gradient(135deg,#1b1f38,#141828);color:var(--txt);
+        transition:transform .15s ease,box-shadow .2s ease,opacity .2s ease;
+    }
+    .btn:hover:not(:disabled){transform:translateY(-1px)}
+    .btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+    .btn.run{background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;
+        box-shadow:0 0 18px rgba(168,85,247,.45)}
+    .btn.probe{background:linear-gradient(135deg,#0ea5e9,#38bdf8);border:none;color:#04121f}
+    .btn.danger{background:linear-gradient(135deg,#dc2626,#f87171);border:none;color:#fff}
+    .btn.ghost{border-color:#333a5c;color:var(--dim)}
+    .btn.running::after{content:'';display:inline-block;width:10px;height:10px;margin-left:8px;
+        border:2px solid #fff;border-radius:50%;border-top-color:transparent;animation:spin .7s linear infinite;vertical-align:-1px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .toggle{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;color:var(--dim);cursor:pointer}
+    .toggle input{accent-color:var(--acc);width:14px;height:14px}
+    main{display:grid;grid-template-columns:1.55fr 1fr;gap:10px;min-height:0}
+    .panel{background:var(--panel2);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-height:0}
+    .panel h2{font-size:.68rem;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase;
+        padding:9px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+    .panel h2 .dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+    .panel h2 .dot.live{background:var(--ok);animation:blink 1.6s ease-in-out infinite}
+    @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+    #log{flex:1;overflow-y:auto;padding:8px 10px;font-family:var(--mono);font-size:.72rem;line-height:1.75}
+    #log::-webkit-scrollbar{width:6px}
+    #log::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+    .l{display:flex;gap:8px;word-break:break-all;white-space:pre-wrap}
+    .t{color:#3d4263;font-size:.64rem;flex-shrink:0;min-width:50px}
+    .lc-0{color:#22d3ee}.lc-1{color:#4ade80}.lc-2{color:#facc15}.lc-3{color:#fb923c}
+    .lc-4{color:#f472b6}.lc-5{color:#60a5fa}.lc-6{color:#a3e635}.lc-7{color:#c084fc}
+    .lc-8{color:#34d399}.lc-9{color:#fda4af}
+    .ok{color:var(--ok)!important;font-weight:700}
+    .err{color:var(--err)!important;font-weight:700}
+    .warn{color:var(--warn)!important}
+    .info{color:var(--info)!important}
+    .fatal{color:var(--err)!important;font-weight:700;text-shadow:0 0 10px rgba(248,113,113,.5)}
+    .empty{color:#3d4263;text-align:center;padding:30px 0;font-size:.78rem}
+    #side{display:flex;flex-direction:column;gap:10px;min-height:0}
+    .block{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:0}
+    .block h3{font-size:.64rem;letter-spacing:1.4px;color:var(--dim);text-transform:uppercase;margin-bottom:8px}
+    .kv{font-family:var(--mono);font-size:.7rem;display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+    .kv b{color:var(--dim);font-weight:400}
+    .kv span{color:var(--txt);word-break:break-all}
+    .kv .good{color:var(--ok)} .kv .bad{color:var(--err)} .kv .warn{color:var(--warn)}
+    #membar{display:flex;align-items:center;gap:8px;margin-top:8px}
+    #memtrack{flex:1;height:5px;background:#1b1f38;border-radius:999px;overflow:hidden}
+    #memfill{height:100%;width:0%;background:linear-gradient(90deg,#7c3aed,#a855f7);border-radius:999px;transition:width .4s}
+    #memfill.hot{background:linear-gradient(90deg,#dc2626,#f87171)}
+    #mempct{font-family:var(--mono);font-size:.68rem;color:var(--dim);min-width:64px;text-align:right}
+    #statusbar{display:flex;align-items:center;gap:10px}
+    #status{flex:1;font-family:var(--mono);font-size:.75rem;color:var(--dim);
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #status.ok{color:var(--ok);font-weight:700}#status.bad{color:var(--err);font-weight:700}
+    #status.run{color:var(--warn)}
+    #pct{font-family:var(--mono);font-size:.72rem;color:var(--acc2);font-weight:700;min-width:40px;text-align:right}
+    #progress{height:5px;background:#1b1f38;border-radius:999px;overflow:hidden;position:relative}
+    #fill{height:100%;width:0%;background:linear-gradient(90deg,#7c3aed,#a855f7,#c084fc);
+        border-radius:999px;transition:width .35s;box-shadow:0 0 10px rgba(168,85,247,.5)}
+    #fill.scan::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
+        animation:scan 1.1s linear infinite}
+    @keyframes scan{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+    @media(max-width:900px){main{grid-template-columns:1fr}#side{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+    <header>
+        <span id="logo">DEEPSLOP <small>PS5 WebKit · RCE kit</small></span>
+        <span class="chip" id="fw">FW: detecting…</span>
+        <span class="chip" id="chipMode">mode: —</span>
+        <span class="chip" id="chipMem">mem: —</span>
+        <span id="spacer"></span>
+        <span id="version">v1.0 · deepslop</span>
+    </header>
+
+    <div id="controls">
+        <button class="btn run" id="btnRun" disabled>▶ RUN</button>
+        <button class="btn probe" id="btnProbe" disabled>◎ PROBE (safe verify)</button>
+        <button class="btn ghost" id="btnLowMem">MEM ▾</button>
+        <button class="btn ghost" id="btnBeacon">BEACON</button>
+        <label class="toggle"><input type="checkbox" id="chkScan" checked> auto-scan offsets</label>
+        <span id="spacer2" style="flex:1"></span>
+        <button class="btn ghost" id="btnCopy">COPY LOG</button>
+        <button class="btn ghost" id="btnClear">CLEAR</button>
+    </div>
+
+    <main>
+        <div class="panel">
+            <h2><span class="dot live" id="logDot"></span> LIVE OUTPUT — exploit stages</h2>
+            <div id="log"><div class="empty">Waiting… select RUN or PROBE</div></div>
+        </div>
+        <div id="side">
+            <div class="block">
+                <h3>System / detected bases</h3>
+                <div class="kv" id="sysinfo">
+                    <b>fw</b><span>—</span>
+                    <b>webkitBase</b><span>—</span>
+                    <b>kernelBase</b><span>—</span>
+                    <b>notify@</b><span>—</span>
+                    <b>trampoline</b><span>—</span>
+                    <b>scan</b><span>—</span>
+                </div>
+            </div>
+            <div class="block">
+                <h3>Offset scan (auto-detected)</h3>
+                <div class="kv" id="scaninfo">
+                    <b>hc (true)</b><span>—</span>
+                    <b>gd / nt</b><span>—</span>
+                    <b>gps slot</b><span>—</span>
+                    <b>cls slot</b><span>—</span>
+                    <b>ers slot</b><span>—</span>
+                    <b>trampoline</b><span>—</span>
+                </div>
+            </div>
+            <div class="block">
+                <h3>WebKit memory budget (estimate)</h3>
+                <div class="kv" id="meminfo">
+                    <b>carrier</b><span>—</span>
+                    <b>capture str</b><span>—</span>
+                    <b>drain keep-alive</b><span>—</span>
+                    <b>slab / arena</b><span>—</span>
+                </div>
+                <div id="membar"><div id="memtrack"><div id="memfill"></div></div><span id="mempct">—</span></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="statusbar">
+        <span id="status">Loading offsets…</span>
+        <span id="pct">0%</span>
+        <div id="progress"><div id="fill"></div></div>
+    </div>
+</div>
+
+<!-- hidden anchors used by exploit.js (setCaption / catState / screenLine) -->
+<div id="cap" hidden></div>
+<div id="cat" hidden></div>
+<pre id="scr" hidden></pre>
+
+<script>
+"use strict";
+const OFFSETS_URL = "offsets/offsets.json?_=" + Date.now();
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const ua = (typeof navigator !== "undefined" && navigator.userAgent) ? navigator.userAgent : "";
+const fwM = /PlayStation 5\/(\d+)\.(\d+)/.exec(ua);
+const fw = fwM ? `${fwM[1].padStart(2,"0")}.${fwM[2].padStart(2,"0")}` : null;
+
+let entry = null, colorIdx = 0, isRunning = false, exploitLoaded = false;
+let exploitProgress = 10, logLines = [], scrollPending = false, lastProg = 0;
+const logEl = $("log");
+
+function chip(id, text, cls){ const c=$(id); c.textContent=text; c.className="chip"+(cls?" "+cls:""); }
+
+/* ── log rendering ── */
+function logClass(t){
+    const s = t.toLowerCase();
+    if (/\[fatal\]|\[crash\]/.test(s)) return "fatal";
+    if (/\[err/.test(s) || /error/.test(s)) return "err";
+    if (/\[ok\]|\[success\]|succe|pass|ready|complete/.test(s)) return "ok";
+    if (/\[warn/.test(s) || /retry|miss|mismatch|abort|fail/.test(s)) return "warn";
+    if (/\[info\]/.test(s)) return "info";
+    return null;
+}
+function addLog(text){
+    const empty = logEl.querySelector(".empty"); if (empty) empty.remove();
+    const now = new Date();
+    const ts = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
+    const t = document.createElement("span"); t.className="t"; t.textContent = ts;
+    const x = document.createElement("span");
+    const sp = logClass(text);
+    x.className = sp ? sp : "lc-" + (colorIdx++ % 10);
+    x.textContent = text;
+    const line = document.createElement("div"); line.className="l"; line.append(t, x);
+    logEl.appendChild(line);
+    logLines.push(text);
+    if (logLines.length > 400){ logLines.splice(0, logLines.length-400); }
+    while (logEl.children.length > 400) logEl.firstChild.remove();
+    if (!scrollPending){ scrollPending = true; requestAnimationFrame(()=>{ logEl.scrollTop = logEl.scrollHeight; scrollPending = false; }); }
+    if (isRunning && exploitProgress < 95){
+        exploitProgress = Math.min(95, exploitProgress + 0.7);
+        const n2 = Date.now();
+        if (n2 - lastProg > 80){ lastProg = n2; setProgress(Math.round(exploitProgress), true); }
+    }
+}
+window.addLog = addLog;
+
+function setProgress(pct, scanning){
+    pct = Math.max(0, Math.min(100, pct));
+    $("fill").style.width = pct + "%";
+    $("pct").textContent = pct + "%";
+    $("fill").classList.toggle("scan", !!scanning);
+}
+window.addExploitStatus = function(text, cls){
+    const st = $("status");
+    if (cls === "ok"){
+        st.textContent = "✓ " + text;
+        st.className = "ok";
+        setProgress(100, false);
+        $("btnRun").classList.remove("running");
+        $("btnRun").textContent = "▶ RUN";
+        $("btnRun").disabled = false;
+        $("btnProbe").disabled = false;
+        isRunning = false;
+    } else if (cls === "bad"){
+        st.textContent = "✗ " + text; st.className = "bad";
+    } else { st.textContent = text; st.className = "run"; }
+};
+
+/* ── offsets ── */
+function fwNum(s){ const p=s.split("."); return parseInt(p[0],10)*100 + parseInt(p[1],10); }
+function nearest(data, target){
+    const want = fwNum(target), maj = target.split(".")[0];
+    let best = null, bestd = 1e9;
+    for (const k in data){
+        if (k.split(".")[0] !== maj) continue;
+        const d = Math.abs(fwNum(k) - want);
+        if (d < bestd){ bestd = d; best = k; }
+    }
+    return best;
+}
+
+chip("fw", fw ? `FW ${fw}` : "FW ? (not a PS5 browser)", fw ? "" : "warn");
+chip("chipMode", params.get("probe")==="1" ? "mode: PROBE" : "mode: FULL", params.get("probe")==="1"?"warn":"");
+chip("chipMem", params.get("lowmem")==="1" ? "mem: LOW" : "mem: normal", params.get("lowmem")==="1"?"warn":"");
+
+setProgress(8);
+addLog("[INFO] loading offsets/offsets.json");
+fetch(OFFSETS_URL, { cache: "no-store" })
+.then(r => r.json())
+.then(data => {
+    setProgress(35);
+    if (!fw){ addLog("[WARN] not a PS5 browser — debug mode"); autoRunNow(); return; }
+    entry = data[fw];
+    if (entry){
+        $("status").textContent = `✓ FW ${fw} — exact offsets found`;
+        $("status").className = "ok";
+        addLog(`[OK] FW ${fw} — exact offsets in table`);
+        enableButtons();
+        setProgress(100);
+        autoRunNow();
+    } else {
+        const near = nearest(data, fw);
+        if (near){
+            entry = data[near];
+            $("status").textContent = `⚠ FW ${fw} — using ${near} (unverified)`;
+            $("status").className = "run";
+            addLog(`[WARN] FW ${fw} not in table — using ${near} (unverified, probe first!)`);
+            addLog("[INFO] run PROBE to verify before the full chain");
+            enableButtons();
+            setProgress(80);
+            autoRunNow();
+        } else {
+            $("status").textContent = `✗ FW ${fw} not supported`;
+            $("status").className = "bad";
+            addLog(`[ERR] FW ${fw} unsupported — no offsets`);
+            setProgress(0);
+            autoRunNow();
+        }
+    }
+})
+.catch(() => {
+    $("status").textContent = "✗ failed to load offsets";
+    $("status").className = "bad";
+    addLog("[ERR] cannot load offsets/offsets.json");
+    autoRunNow();
+});
+
+function enableButtons(){
+    $("btnRun").disabled = false;
+    $("btnProbe").disabled = false;
+}
+
+/* ── build param string from current UI state ── */
+function buildParams(extra){
+    const q = new URLSearchParams();
+    q.set("go", "1");
+    q.set("fw", fw || "11.60");
+    q.set("hc", entry.hc.join(","));
+    q.set("gd", entry.gd);
+    q.set("notify", entry.nt);
+    q.set("gps", entry.gps);
+    q.set("gpe", entry.gpe);
+    q.set("cls", entry.cls);
+    q.set("cle", entry.cle);
+    q.set("ers", entry.ers);
+    q.set("ere", entry.ere);
+    if ($("chkScan").checked) q.set("scan", "1"); else q.set("scan", "0");
+    for (const k in extra) q.set(k, extra[k]);
+    return q;
+}
+
+function injectExploit(q){
+    window.EXPLOIT_PARAMS = q;
+    const s = document.createElement("script");
+    s.src = "exploit.js?_=" + Date.now();
+    s.onerror = () => {
+        addLog("[ERR] cannot load exploit.js");
+        exploitLoaded = false; isRunning = false;
+        $("btnRun").classList.remove("running");
+        $("btnRun").textContent = "▶ RUN";
+        setProgress(0);
+    };
+    document.head.appendChild(s);
+    addLog("[INFO] exploit.js injected");
+}
+
+function startRun(mode){
+    if (!entry || isRunning) return;
+    isRunning = true;
+    exploitProgress = 15;
+    setProgress(15, true);
+    addLog(`[INFO] launching exploit — ${mode}`);
+    if (exploitLoaded){ addLog("[INFO] exploit already active — reload the page to run again"); return; }
+    exploitLoaded = true;
+    $("btnRun").classList.add("running");
+    $("btnRun").textContent = "RUNNING";
+    $("btnRun").disabled = true;
+    $("btnProbe").disabled = true;
+    const extra = {};
+    if (mode === "probe"){ extra.probe = "1"; extra.scan = "1"; }
+    injectExploit(buildParams(extra));
+}
+
+$("btnRun").addEventListener("click", () => startRun("full"));
+$("btnProbe").addEventListener("click", () => startRun("probe"));
+
+/* ── mode switches (reload keeps flags for exploit.js) ── */
+function reloadWith(patch){
+    const q = new URLSearchParams(location.search);
+    for (const k in patch){ if (patch[k] === null) q.delete(k); else q.set(k, patch[k]); }
+    location.href = location.pathname + (q.toString() ? "?" + q.toString() : "");
+}
+$("btnLowMem").addEventListener("click", () => {
+    const on = params.get("lowmem") === "1";
+    addLog(on ? "[INFO] low-memory mode OFF — reloading" : "[INFO] low-memory mode ON (drain=128, no 4MB slab, carrier 4.5M) — reloading");
+    reloadWith(on ? { lowmem: null, n: null } : { lowmem: "1", n: "128" });
+});
+$("btnBeacon").addEventListener("click", () => {
+    const on = params.get("log") === "1";
+    addLog(on ? "[INFO] beacons OFF — reloading" : "[INFO] beacons ON (sync XHR to /log/<msg> — server must return 200) — reloading");
+    reloadWith(on ? { log: null } : { log: "1" });
+});
+
+$("btnClear").addEventListener("click", () => {
+    logEl.innerHTML = "";
+    logLines = [];
+    addLog("[INFO] log cleared");
+});
+$("btnCopy").addEventListener("click", () => {
+    const text = logLines.join("\n");
+    if (!navigator.clipboard || !navigator.clipboard.writeText){
+        addLog("[WARN] clipboard unavailable — use BEACON to send log to server");
+        return;
+    }
+    navigator.clipboard.writeText(text)
+        .then(() => addLog("[OK] log copied to clipboard"))
+        .catch(() => addLog("[WARN] clipboard unavailable — use BEACON to send log to server"));
+});
+
+/* ── poll deepslop state (bases + scan + memory) ── */
+function fmt(n){ return n == null ? "—" : "0x" + Number(n).toString(16); }
+setInterval(() => {
+    const info = window.deepslopInfo;
+    if (info){
+        const s = document.querySelectorAll("#sysinfo span");
+        if (s.length >= 6){
+            s[0].textContent = info.fw || "—";
+            s[1].textContent = fmt(info.webkitBase);
+            s[2].textContent = fmt(info.kernelBase);
+            s[3].textContent = fmt(info.notifyEntryAddress);
+            s[4].textContent = fmt(info.naturalTrampolineAddress);
+            s[5].textContent = info.scan ? "done ✓" : "—";
+            s[5].className = info.scan ? "good" : "";
+        }
+        const scan = window.deepslopScanOffsets ? window.deepslopScanOffsets() : null;
+        if (scan){
+            const sl = document.querySelectorAll("#scaninfo span");
+            if (sl.length >= 6){
+                sl[0].textContent = fmt(scan.hc) + (scan.verified && scan.verified.hc ? " ✓" : " ⚠");
+                sl[0].className = scan.verified && scan.verified.hc ? "good" : "warn";
+                sl[1].textContent = fmt(scan.gd) + " / " + fmt(scan.nt);
+                const g = scan.found.gps, c = scan.found.cls, e = scan.found.ers;
+                sl[2].textContent = g && g.length ? fmt(g[g.length-1]) + (g.includes(scan.gps)?" ✓":"") : "none";
+                sl[3].textContent = c && c.length ? fmt(c[c.length-1]) + (c.includes(scan.cls)?" ✓":"") : "none";
+                sl[4].textContent = e && e.length ? fmt(e[e.length-1]) + (e.includes(scan.ers)?" ✓":"") : "none";
+                sl[5].textContent = scan.verified && scan.verified.trampolineBytes
+                    ? (String(scan.verified.trampolineBytes).includes("mismatch") ? scan.verified.trampolineBytes : "bytes OK ✓")
+                    : "—";
+                sl[5].className = String(scan.verified && scan.verified.trampolineBytes).includes("mismatch") ? "bad" : "good";
+            }
+        }
+    }
+    const mem = window.deepslopMemEstimate ? window.deepslopMemEstimate() : null;
+    if (mem){
+        const m = document.querySelectorAll("#meminfo span");
+        if (m.length >= 4){
+            m[0].textContent = Math.round(mem.carrierBytes/1048576) + " MB";
+            m[1].textContent = Math.round(mem.captureStringBytes/1048576) + " MB";
+            m[2].textContent = Math.round(mem.drainBytes/1048576) + " MB";
+            m[3].textContent = Math.round(mem.slabBytes/1048576) + " / " + Math.round(mem.arenaBytes/1024) + " KB";
+        }
+        const tot = mem.totalBytes, mb = tot/1048576;
+        const pct = Math.min(100, Math.round(mb / 400 * 100));
+        $("memfill").style.width = pct + "%";
+        $("memfill").classList.toggle("hot", pct > 75);
+        $("mempct").textContent = Math.round(mb) + " MB" + (mem.lowmem ? " (LOW)" : "");
+        chip("chipMem", mem.lowmem ? "mem: LOW" : "mem: normal", mem.lowmem ? "warn" : "");
+    }
+}, 800);
+
+/* auto-run when ?go=1 present (mode-switch reloads) — deferred until offsets
+   are resolved so the fw/hc/gd/... params are always populated (the old code
+   ran before fetch() finished and silently used built-in 11.60 offsets). */
+function autoRunNow(){
+    if (params.get("go") !== "1" || isRunning) return;
+    addLog("[INFO] ?go=1 detected — auto-arming");
+    const q = new URLSearchParams();
+    q.set("go","1");
+    q.set("fw", fw || "11.60");
+    if (entry){
+        q.set("hc", entry.hc.join(","));
+        q.set("gd", entry.gd); q.set("notify", entry.nt);
+        q.set("gps", entry.gps); q.set("gpe", entry.gpe);
+        q.set("cls", entry.cls); q.set("cle", entry.cle);
+        q.set("ers", entry.ers); q.set("ere", entry.ere);
+    } else {
+        addLog("[WARN] no offsets table entry — exploit.js will fall back to built-in 11.60");
+    }
+    for (const k of ["probe","scan","lowmem","log","n","max","rd","cap","gap"])
+        if (params.has(k)) q.set(k, params.get(k));
+    isRunning = true; exploitLoaded = true;
+    $("btnRun").classList.add("running");
+    $("btnRun").textContent = "RUNNING";
+    $("btnRun").disabled = true; $("btnProbe").disabled = true;
+    injectExploit(q);
+}
+autoRunNow();
+</script>
+</body>
+</html>
