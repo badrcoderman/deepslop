@@ -5,6 +5,16 @@
 
 ---
 
+## 🚀 v1.2.1 — إحياء الـ payloads الميتة + إصلاح Promise (2026-08-10)
+
+- **أزرار جديدة في الشبكة**: 👋 HELLO WORLD (`payloads/helloworld.js` — self-test)
+  و 📊 DEEPSLOP INFO (`payloads/deepslop_info.js` — تقرير bases/scan/mem)
+  — الملفان كانا موجودين على القرص بلا أي زر يشغّلهما.
+- **إصلاح `runPayloadFile`**: الـ payloads كلها async IIFE — كانت `(0,eval)`
+  ترجع Promise فتبقى النتيجة `[object Promise]` ورفض داخلي يُبتلع بصمت
+  (الزر يبقى spin للأبد). الآن تُنتظر الـ Promises: القيمة الحقيقية تظهر في
+  السجل + `payloadResult`، والرفض يوقف الـ spin ويضع fail مع الرسالة.
+
 ## 🚀 v1.1.2 — سلسلة COMMIT بدون PC افتراضيًا + منارة اختيارية (2026-08-10)
 
 - **`commitRce` أصبح بلا socket افتراضيًا**: السلسلة = إشعار + crash فقط،
