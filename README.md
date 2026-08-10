@@ -49,7 +49,8 @@ deepslop/
 ## 🔧 الإعداد المطلوب
 
 > 🎮 **الوضع الافتراضي: بدون PC نهائيًا** — الاستغلال + payloads كلها على الجهاز.
-> الـ PC اختياري (زر 📡 PC REMOTE في الواجهة) لتفعيل REPL عبر WebSocket.
+> الـ PC اختياري (زر 📡 PC REMOTE في الواجهة) لتفعيل REPL عبر WebSocket، و`?pc=1`
+> يفعّل منارة socket في سلسلة COMMIT.
 
 1. **🏠 IP جهازك** (اختياري — للوضع البعيد فقط): عدّل `RCE_PC_IP` في
    `exploit.js:119` + fallback في `remote.js:16`.

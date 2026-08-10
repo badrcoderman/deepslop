@@ -581,7 +581,7 @@ function autoRunNow(){
     } else {
         addLog("[WARN] no offsets table entry — exploit.js will fall back to built-in 11.60");
     }
-    for (const k of ["probe","scan","log","n","max","rd","cap","gap"])
+    for (const k of ["probe","scan","log","n","max","rd","cap","gap","pc"])
         if (params.has(k)) q.set(k, params.get(k));
     isRunning = true; exploitLoaded = true;
     $("btnRun").classList.add("running");
