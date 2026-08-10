@@ -93,6 +93,15 @@
         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #status.ok{color:var(--ok);font-weight:700}#status.bad{color:var(--err);font-weight:700}
     #status.run{color:var(--warn)}
+    .inp{width:100%;background:#0c0f1e;border:1px solid var(--line);border-radius:8px;
+        color:var(--txt);font-family:var(--mono);font-size:.7rem;padding:7px 9px;outline:none}
+    .inp:focus{border-color:var(--acc)}
+    .ta{width:100%;height:72px;background:#0c0f1e;border:1px solid var(--line);border-radius:8px;
+        color:var(--txt);font-family:var(--mono);font-size:.66rem;padding:7px 9px;resize:none;outline:none}
+    .ta:focus{border-color:var(--acc)}
+    .row{display:flex;gap:6px;margin-top:6px}
+    .row .btn{flex:1;padding:7px 10px;font-size:.7rem}
+    .block .btn.pay{width:100%;margin-top:6px}
     #pct{font-family:var(--mono);font-size:.72rem;color:var(--acc2);font-weight:700;min-width:40px;text-align:right}
     #progress{height:5px;background:#1b1f38;border-radius:999px;overflow:hidden;position:relative}
     #fill{height:100%;width:0%;background:linear-gradient(90deg,#7c3aed,#a855f7,#c084fc);
@@ -109,15 +118,13 @@
         <span id="logo">DEEPSLOP <small>PS5 WebKit · RCE kit</small></span>
         <span class="chip" id="fw">FW: detecting…</span>
         <span class="chip" id="chipMode">mode: —</span>
-        <span class="chip" id="chipMem">mem: —</span>
         <span id="spacer"></span>
-        <span id="version">v1.0 · deepslop</span>
+        <span id="version">v1.1.0 · deepslop</span>
     </header>
 
     <div id="controls">
         <button class="btn run" id="btnRun" disabled>▶ RUN</button>
         <button class="btn probe" id="btnProbe" disabled>◎ PROBE (safe verify)</button>
-        <button class="btn ghost" id="btnLowMem">MEM ▾</button>
         <button class="btn ghost" id="btnBeacon">BEACON</button>
         <label class="toggle"><input type="checkbox" id="chkScan" checked> auto-scan offsets</label>
         <span id="spacer2" style="flex:1"></span>
@@ -162,6 +169,16 @@
                     <b>slab / arena</b><span>—</span>
                 </div>
                 <div id="membar"><div id="memtrack"><div id="memfill"></div></div><span id="mempct">—</span></div>
+            </div>
+            <div class="block">
+                <h3>📦 On-device payloads — no PC needed</h3>
+                <input class="inp" id="notifyText" placeholder="notification text…">
+                <button class="btn pay" id="btnNotify">🔔 NOTIFY (PS5 toast)</button>
+                <button class="btn pay" id="btnReport">ℹ️ REPORT (info + scan + mem)</button>
+                <button class="btn pay" id="btnSyscall">🛰 TEST SYSCALLS (no crash)</button>
+                <button class="btn pay danger" id="btnCommit">💥 COMMIT RCE (fire chain)</button>
+                <textarea class="ta" id="payloadCode" spellcheck="false" placeholder="custom JS payload — runs in the sandbox after RCE (window.rwView / scratchWords / kernelBase … available)"></textarea>
+                <div class="row"><button class="btn" id="btnRunPayload">⚡ RUN PAYLOAD</button><button class="btn ghost" id="btnLoadNotifyJs">📄 load notification.js</button></div>
             </div>
         </div>
     </main>
@@ -263,7 +280,6 @@ function nearest(data, target){
 
 chip("fw", fw ? `FW ${fw}` : "FW ? (not a PS5 browser)", fw ? "" : "warn");
 chip("chipMode", params.get("probe")==="1" ? "mode: PROBE" : "mode: FULL", params.get("probe")==="1"?"warn":"");
-chip("chipMem", params.get("lowmem")==="1" ? "mem: LOW" : "mem: normal", params.get("lowmem")==="1"?"warn":"");
 
 setProgress(8);
 addLog("[INFO] loading offsets/offsets.json");
@@ -372,11 +388,6 @@ function reloadWith(patch){
     for (const k in patch){ if (patch[k] === null) q.delete(k); else q.set(k, patch[k]); }
     location.href = location.pathname + (q.toString() ? "?" + q.toString() : "");
 }
-$("btnLowMem").addEventListener("click", () => {
-    const on = params.get("lowmem") === "1";
-    addLog(on ? "[INFO] low-memory mode OFF — reloading" : "[INFO] low-memory mode ON (drain=128, no 4MB slab, carrier 4.5M) — reloading");
-    reloadWith(on ? { lowmem: null, n: null } : { lowmem: "1", n: "128" });
-});
 $("btnBeacon").addEventListener("click", () => {
     const on = params.get("log") === "1";
     addLog(on ? "[INFO] beacons OFF — reloading" : "[INFO] beacons ON (sync XHR to /log/<msg> — server must return 200) — reloading");
@@ -397,6 +408,92 @@ $("btnCopy").addEventListener("click", () => {
     navigator.clipboard.writeText(text)
         .then(() => addLog("[OK] log copied to clipboard"))
         .catch(() => addLog("[WARN] clipboard unavailable — use BEACON to send log to server"));
+});
+
+/* ── on-device payloads (no PC / no WebSocket) ── */
+function payloadReady(){
+    if (window.notifyReady === true) return true;
+    addLog("[WARN] exploit not armed yet — run RUN or PROBE first (payloads need RCE)");
+    return false;
+}
+$("btnNotify").addEventListener("click", () => {
+    if (!payloadReady()) return;
+    const t = $("notifyText").value.trim() || "DEEPSLOP on-device payload";
+    try { window.send_notification(t); addLog("[OK] notification sent: " + t); }
+    catch (e) { addLog("[ERR] notify: " + e); }
+});
+$("btnReport").addEventListener("click", () => {
+    if (!payloadReady()) return;
+    const info = window.deepslopInfo;
+    const scan = window.deepslopScanOffsets ? window.deepslopScanOffsets() : null;
+    const mem = window.deepslopMemEstimate ? window.deepslopMemEstimate() : null;
+    const f = n => n == null ? "—" : "0x" + Number(n).toString(16);
+    addLog("[INFO] ── deepslop report ──");
+    addLog("[INFO] fw=" + (info ? info.fw : "—") + " webkit=" + f(info && info.webkitBase)
+        + " kernel=" + f(info && info.kernelBase));
+    addLog("[INFO] notify@" + f(info && info.notifyEntryAddress)
+        + " trampoline@" + f(info && info.naturalTrampolineAddress));
+    if (scan){
+        addLog("[INFO] scan: hc=" + f(scan.hc) + " gd=" + f(scan.gd) + " nt=" + f(scan.nt)
+            + " gps=" + f(scan.gps) + " cls=" + f(scan.cls) + " ers=" + f(scan.ers));
+        if (scan.verified) addLog("[INFO] verified: " + JSON.stringify(scan.verified));
+    }
+    if (mem) addLog("[INFO] mem: " + Math.round(mem.totalBytes/1048576) + "MB total"
+        + " · carrier=" + Math.round(mem.carrierBytes/1048576) + "MB"
+        + " · capture=" + Math.round(mem.captureStringBytes/1048576) + "MB"
+        + " · drain=" + Math.round(mem.drainBytes/1048576) + "MB"
+        + " · slab=" + Math.round(mem.slabBytes/1048576) + "MB"
+        + " · arena=" + Math.round(mem.arenaBytes/1024) + "KB");
+    addLog("[OK] report complete");
+});
+$("btnSyscall").addEventListener("click", () => {
+    if (!payloadReady()) return;
+    if (typeof window.syscallDemo !== "function"){
+        addLog("[ERR] syscallDemo unavailable — initKernel() failed on this run");
+        return;
+    }
+    addLog("[INFO] running clean syscall battery (pipe ×2 + close)…");
+    try {
+        const r = window.syscallDemo();
+        addLog("[OK] syscall battery done:");
+        addLog("[INFO]  pipe #1    → fds=[" + r.fds.join(", ") + "]"
+            + (r.pipe && r.pipe.error ? " err=" + r.pipe.error : " ✓ syscall executed"));
+        if (r.close1 && r.close1.error) addLog("[WARN] close1: " + r.close1.error);
+        addLog("[INFO]  pipe #2    → fds=[" + r.fds2.join(", ") + "]"
+            + (r.pipe2 && r.pipe2.error ? " err=" + r.pipe2.error : " ✓"));
+        addLog("[INFO]  libkernel  = " + r.libkernel + " · ropReady=" + r.ropReady);
+        addLog("[INFO] note: clean path captures pointer results only (pipe fds);");
+        addLog("[INFO] rax + full-arg syscalls (write/socket/open) need the ROP chain.");
+        addLog("[INFO] try: window.syscallClean(0x2a, window.malloc(16)) in the editor");
+    } catch (e) {
+        addLog("[ERR] syscall battery threw: " + String(e && e.message));
+    }
+});
+$("btnCommit").addEventListener("click", () => {
+    if (!payloadReady()) return;
+    addLog("[INFO] committing RCE — notification + chain");
+    try { window.commitRce(); }
+    catch (e) { addLog("[ERR] commitRce: " + e); }
+});
+function runPayloadCode(code){
+    if (!payloadReady()) return;
+    if (!code || !code.trim()){ addLog("[WARN] empty payload"); return; }
+    addLog("[INFO] running on-device payload (" + code.length + " bytes)");
+    try {
+        const res = (0, eval)(code);
+        if (res !== undefined) addLog("[INFO] payload returned: " + String(res));
+        addLog("[OK] payload executed");
+    } catch (e) {
+        addLog("[ERR] payload threw: " + (e && e.name) + ": " + String(e && e.message).slice(0, 120));
+    }
+}
+$("btnRunPayload").addEventListener("click", () => runPayloadCode($("payloadCode").value));
+$("btnLoadNotifyJs").addEventListener("click", () => {
+    addLog("[INFO] fetching payloads/notification.js from same origin…");
+    fetch("payloads/notification.js?_=" + Date.now())
+        .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+        .then(code => { $("payloadCode").value = code; addLog("[OK] notification.js loaded into editor"); })
+        .catch(e => addLog("[ERR] fetch payload: " + e.message));
 });
 
 /* ── poll deepslop state (bases + scan + memory) ── */
@@ -445,8 +542,7 @@ setInterval(() => {
         const pct = Math.min(100, Math.round(mb / 400 * 100));
         $("memfill").style.width = pct + "%";
         $("memfill").classList.toggle("hot", pct > 75);
-        $("mempct").textContent = Math.round(mb) + " MB" + (mem.lowmem ? " (LOW)" : "");
-        chip("chipMem", mem.lowmem ? "mem: LOW" : "mem: normal", mem.lowmem ? "warn" : "");
+        $("mempct").textContent = Math.round(mb) + " MB";
     }
 }, 800);
 
@@ -468,7 +564,7 @@ function autoRunNow(){
     } else {
         addLog("[WARN] no offsets table entry — exploit.js will fall back to built-in 11.60");
     }
-    for (const k of ["probe","scan","lowmem","log","n","max","rd","cap","gap"])
+    for (const k of ["probe","scan","log","n","max","rd","cap","gap"])
         if (params.has(k)) q.set(k, params.get(k));
     isRunning = true; exploitLoaded = true;
     $("btnRun").classList.add("running");

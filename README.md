@@ -6,7 +6,7 @@
 `slopkit-webkit-exploit-main` مع ترقيات جذرية:
 
 🖥️ **واجهة تحكم جديدة** · 🔬 **وضع PROBE** · 🎯 **ماسح أوفستس ذاتي** ·
-🧠 **وضع ذاكرة منخفضة LOW_MEM** · 📡 **منارات BEACON** · 🛰️ **REPL loader**
+📡 **منارات BEACON** · 🛰️ **REPL loader** · 📦 **payloads على الجهاز
 
 ---
 
@@ -39,6 +39,8 @@ deepslop/
 ├── rop_slave.js          🤖 worker المرافق
 ├── lapse-runtime.js      🧩 runtime lapse (9.00–10.01 — غير موصول، محروس FW)
 ├── aioshellcode.js       💀 محمّل AIO الأصلي (inert — غير موصول)
+├── host/                 🌐 أدوات استضافة DNS+HTTPS (fakedns · host.py · log_server)
+├── research/             🔬 مراجع فئات ثغرات WebKit + عائلة structured-clone (INDEX.md)
 └── cat.jpg               🐱 أصل غير مستخدم (مرجعي)
 ```
 
@@ -109,19 +111,34 @@ python3 send_payload.py payloads/helloworld.js --host 192.168.1.50
 
 - ▶️ **RUN** — السلسلة الكاملة (RCE)
 - 🔬 **PROBE** — يتوقف بعد R/W + تسريب القواعد + فحص الأوفستس (لا notification)
-- 🧠 **LOW_MEM** — carrier 4.5M، drain 128، بدون slab 4MB، تصعيد OOM تلقائي
 - 📡 **BEACON** — XHR متزامن إلى `/log/<msg>` (عمدًا، ليقبل قبل أي navigation)
+
+### 📦 Payloads على الجهاز (بدون PC)
+
+بعد الـ RCE تظهر لوحة **On-device payloads** في الواجهة:
+
+- 🔔 **NOTIFY** — إرسال إشعار PS5 (نص حر) عبر `send_notification`
+- 🛰️ **TEST SYSCALLS** — بطارية syscalls نظيفة (pipe ×2 + close) — **إثبات تنفيذ
+  syscall حقيقي داخل الصندوق بدون kernel exploit ولا crash**
+- ℹ️ **REPORT** — تفريغ info + scan + ميزانية الذاكرة إلى السجل
+- 💥 **COMMIT RCE** — تشغيل سلسلة ROP (إشعار + crash) يدويًا
+- ⚡ **RUN PAYLOAD** — تنفيذ أي كود JS في صندوق المتصفح مباشرة
+  (`window.rwView` / `scratchWords` / `kernelBase` … مكشوفة)،
+  مع زر تحميل `payloads/notification.js` محليًا
 
 ---
 
 ## 🧠 ميزانية الذاكرة (WebKit)
 
-| 📊 عنصر | 🟢 عادي | 🟡 LOW_MEM |
-|---|---|---|
-| carrier (float64) | 9,000,000 خانة ≈ **72MB** | 4,500,000 ≈ **36MB** |
-| سلسلة الأسر (captured string) | ≈ **144MB** | ≈ **72MB** |
-| drain (keep-alive) | 512 × 64KB | 128 × 64KB |
-| slab 4MB | ✅ نعم | ❌ لا |
+| 📊 عنصر | 🟢 عادي |
+|---|---|
+| carrier (float64) | 9,000,000 خانة ≈ **72MB** |
+| سلسلة الأسر (captured string) | ≈ **144MB** |
+| drain (keep-alive) | 512 × 64KB |
+| slab 4MB | ✅ نعم |
+
+> ℹ️ استُبعد وضع LOW_MEM عمدًا — الهدف PS5 فقط (لا قيد ذاكرة). القيم ثابتة
+> على الأقصى لموثوقية الـ spray.
 
 ---
 
@@ -129,6 +146,7 @@ python3 send_payload.py payloads/helloworld.js --host 192.168.1.50
 
 | الإصدار | التاريخ | أبرز ما فيه |
 |---|---|---|
+| 📚 **v1.1.0** | 2026-08-10 | تحليل 8 مستودعات قديمة + دمج المراجع: `research/` (فئات ثغرات WebKit: angler · dfg · poc · maxu + عائلة structured-clone: jordy · userland_only) + `host/` (أدوات DNS/HTTPS spoof) |
 | 🩹 **v1.0.1** | 2026-08-10 | مراجعة كاملة لكل ملف + إصلاح 9 أخطاء (أهمها `carrierSlots` وسباق `?go=1`) + حُرّاس FW + تحسينات خادم/واجهة |
 | 🚀 **v1.0.0** | — | الإطلاق الأولي: Dashboard، PROBE mode، ماسح أوفستس ذاتي، LOW_MEM، BEACON، REPL |
 

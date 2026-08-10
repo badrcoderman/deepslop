@@ -23,8 +23,7 @@
     }
 
     if (report.mem) {
-        await log("deepslop_info: memTotal=" + Math.round(report.mem.totalBytes / 1048576) + "MB"
-            + " lowmem=" + report.mem.lowmem);
+        await log("deepslop_info: memTotal=" + Math.round(report.mem.totalBytes / 1048576) + "MB");
     }
 
     send_notification("DEEPSLOP info report ready");

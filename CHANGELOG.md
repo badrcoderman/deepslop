@@ -5,6 +5,71 @@
 
 ---
 
+## 📚 v1.1.0 — بحث 8 مستودعات قديمة + دمج المراجع (2026-08-10)
+
+حلّلنا بالكامل محتوى `/home/user/Documents/webp5/other&old-explolts/` (8 مستودعات)
+واستخرجنا المفيد للمشروع:
+
+### 🗂️ أُضيف `research/` (مراجع تحسين استغلال WebKit فقط — لا مستودعات كاملة)
+
+مسح كامل لـ 8 مستودعات (جولة ثانية شملت كل مجلدات zecoxao الـ ~60)، وبمعيار
+**«ما يحسّن استغلال WebKit على 13.60 فقط»** أُخذ 9 ملفات تقنية محددة (292KB):
+
+- فئات ثغرات WebKit/JSC بديلة/معزّزة: `angler` (CVE-2025-43529 + ANGLE oracle) ·
+  `poc` (تناقض DFG/FTL) · `dfg` · `genericTypedArray` · `get_by_id_with_this` ·
+  `bushigan` · `maxu` (CVE-2025-24201 UA tester).
+- عائلة سلسلتنا: `jordy` + `userland_only` (بوتستراب 616.1 بتحقق صارم — نمط
+  قابل للنقل لتحصين bootstrap لدينا).
+- حُذف: `kexp/` (kernel stage) · `int64.js`/`rop.js` · سلاسل ≤12.00 ·
+  مسربات 11.60 · مواد PS4 · وسائط/وثائق/مستودعات كاملة.
+
+### 🖥️ Payloads على الجهاز (بدون PC) — `index.html` فقط (لا مساس بـ exploit.js)
+
+لوحة **On-device payloads** في الواجهة تُفعَّل بعد الـ RCE (تعتمد فقط على الـ APIs
+المكشوفة أصلاً: `send_notification` · `deepslopInfo` · `deepslopScanOffsets` ·
+`deepslopMemEstimate` · `commitRce` · `mark`):
+
+- 🔔 NOTIFY — نص حر → إشعار PS5 (natural trampoline، بدون crash).
+- ℹ️ REPORT — تفريغ info + scan + ميزانية الذاكرة في السجل.
+- 💥 COMMIT RCE — تشغيل الـ ROP chain يدويًا (إشعار + crash) — تذكير: بعد
+  commit أو crash تحتاج reload (الـ spray يستنزف ذاكرة الصندوق — سلوك أصلي).
+- ⚡ RUN PAYLOAD — `(0, eval)` لأي كود JS في صندوق المتصفح (R/W عبر
+  `window.rwView`/`scratchWords`/`kernelBase`…) + زر تحميل
+  `payloads/notification.js` من نفس الأصل.
+- 🗑️ **إزالة LOW_MEM نهائيًا** (استبعاد الهدف PS5 فقط، لا قيد ذاكرة): حُذف
+  زر `MEM ▾` و`chipMem` و`?lowmem=1` و`escalateLowMem` وفرع slab-4MB المشروط —
+  القيم ثابتة على الأقصى (carrier 9M، drain 512، slab 4MB دائمًا). **لا تغيير
+  في أي منطق استغلال** — فقط حذف الفروع/الدوال المرتبطة بـ LOW_MEM.
+- 🛰️ **syscalls نظيفة داخل الصندوق** (بدون kernel exploit وبدون crash):
+  - `window.syscallClean(id, a0, a3)` في `initKernel()` — استدعاء stubs libkernel
+    عبر natural trampoline (المسار النظيف الذي يعود لـ JS): يصلح للـ syscalls
+    بمعامل واحد (rdi) + الرابع (rcx)، والنتائج تُلتقط عبر مؤشرات إلى arena
+    (لأن rax غير قابل للقراءة في هذا المسار).
+  - `window.syscallDemo()` — بطارية: `pipe` ×2 (يكتب fd حقيقيين = إثبات تنفيذ
+    syscall) + `close` — على libkernel 13.60 (الأوفستس مثبتة: S_PIPE 0x1b4c1،
+    S_CLOSE 0x1b7b1 — نفس قيم buildRceChain العاملة).
+  - زر 🛰️ TEST SYSCALLS في الواجهة يعرض النتائج في السجل.
+  - ملاحظة: `thr_self`/`sched_yield` بلا stubs في الجدول؛ والـ syscalls كاملة
+    المعاملات (write/socket/open) تعمل عبر سلسلة ROP بنمط buildRceChain
+    (الموجودة أصلاً وتثبت ذلك على 13.60).
+
+### 🌐 أُضيف `host/` (أدوات استضافة إيصال الحمولة، منقاة)
+
+- `fakedns.py` + `dns.conf` + `host.py` + `localhost.pem` + `dumpserver.py`
+  (من PS5-UMTX) — خادم DNS MITM يحوّل `manuals.playstation.net` إلى جهازك +
+  HTTPS appcache.
+- `appcache_manifest_generator.py` (من zecoxao.github.io) — توليد `cache.appcache`.
+- `log_server.py` (من Y2JB) — خادم HTTP :8080 لاستقبال السجلات (log write-back مع
+  CORS).
+- `host/README.md` — خطوات التشغيل والتحذيرات (لا تشغيل إلا على شبكة الاختبار).
+
+### ✅ تحقق
+
+`node --check` سليم · `python3 -m py_compile host/*.py` · فحص JSON · مراجعة
+ملفات النسخ (لا ملفات ثنائية كبيرة في research غير المتوقعة).
+
+---
+
 ## 🩹 v1.0.1 — مراجعة كاملة + إصلاحات (2026-08-10)
 
 فحص كل ملف سطرًا بسطر (دوال الاستغلال، الواجهة، الخادم، payloads، الأوفستس)
