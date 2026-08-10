@@ -46,18 +46,19 @@ deepslop/
 
 ---
 
-## 🔧 الإعداد المطلوب (نقاط مفتاحية)
+## 🔧 الإعداد المطلوب
 
-1. **🏠 IP جهازك**: عدّل `RCE_PC_IP` في `exploit.js:120` (fallback في `remote.js:16`).
-2. **🔌 المنافذ** (متناسقة في كل مكان):
+> 🎮 **الوضع الافتراضي: بدون PC نهائيًا** — الاستغلال + payloads كلها على الجهاز.
+> الـ PC اختياري (زر 📡 PC REMOTE في الواجهة) لتفعيل REPL عبر WebSocket.
+
+1. **🏠 IP جهازك** (اختياري — للوضع البعيد فقط): عدّل `RCE_PC_IP` في
+   `exploit.js:119` + fallback في `remote.js:16`.
+2. **🔌 المنافذ** (للوضع البعيد فقط):
    - `50000` — `ws_server.py` (REPL + `POST /inject`)
-   - `8080` — خادم HTTP ثابت يخدم `index.html` و`remote.js` و`offsets/`
+   - `8080` — خادم HTTP ثابت يخدم `remote.js` و`offsets/`
      (مثال: `python3 -m http.server 8080 --directory deepslop`).
-     ⚠️ **مهم**: `exploit.js` يجلب `remote.js` من `http://<IP>:8080/remote.js` —
-     بدون خادم 8080 لا يصل REPL.
-3. 🌐 ضع `index.html` في رابط الاستغلال (مثل `http://<PC>:8080/?go=1` أو املأ
-   `?fw=13.60` للتحكم اليدوي). `?go=1` يبدأ التشغيل تلقائيًا **بعد** تحميل
-   الأوفستس (أُصلح سباق الجلب).
+3. 🌐 رابط الاستغلال (مع أو بدون PC): `?go=1` يبدأ التشغيل تلقائيًا **بعد**
+   تحميل الأوفستس.
 
 ---
 
@@ -65,22 +66,18 @@ deepslop/
 
 > 🎉 **مباشر الآن**: `https://badrcoderman.github.io/deepslop/`
 
-المستودع عام مع Pages مفعّلة من `main` — الواجهة والأوفستس يُخدمان من الاستضافة
-دون خادم محلي:
+المستودع عام مع Pages مفعّلة من `main` — **الوضع الكامل يعمل من الاستضافة وحدها**:
+استغلال → RCE → إشعار → payloads محلية (NOTIFY / SYSCALLS / REPORT / COMMIT /
+محرر كود) — لا PC، لا خوادم:
 
 ```
 🕹️ PS5 browser → https://badrcoderman.github.io/deepslop/?go=1&fw=13.60
 ```
 
-⚠️ **تنبيه mixed-content**: صفحة https تمنع عادةً جلب موارد http غير آمنة. مسار
-البيانات (RCE) يبقى كما هو — `exploit.js` يجلب `remote.js` من `http://<PC>:8080`
-و`remote.js` يتصل بـ `ws://<PC>:50000`. على متصفحات WebKit القديمة (PS5) قد
-يُسمح بذلك، لكن إن فشل `REMOTE-JS-FETCH-FAIL` على جهازك:
-
-- ✅ شغّل خادم 8080 على جهازك مع ترويسة CORS
-  (`Access-Control-Allow-Origin: *`)،
-- ✅ أو استخدم `http://<PC>:8080/` (النشر المحلي) بدل GitHub Pages — سلوك
-  same-origin كامل.
+🔌 **تفعيل PC REMOTE** (اختياري): زر 📡 في الواجهة يجلب `remote.js` من
+`http://<PC>:8080` (mixed-content: على WebKit القديم غالبًا مسموح؛ إن فشل
+`REMOTE-JS-FETCH-FAIL` استخدم خادم 8080 بترويسة CORS `*` أو النشر المحلي
+`http://<PC>:8080/` — same-origin كامل).
 
 ---
 
@@ -122,6 +119,8 @@ python3 send_payload.py payloads/helloworld.js --host 192.168.1.50
   syscall حقيقي داخل الصندوق بدون kernel exploit ولا crash**
 - ℹ️ **REPORT** — تفريغ info + scan + ميزانية الذاكرة إلى السجل
 - 💥 **COMMIT RCE** — تشغيل سلسلة ROP (إشعار + crash) يدويًا
+- 📡 **PC REMOTE** — جلب `remote.js` وتفعيل REPL عبر WebSocket (يحتاج PC:
+  `ws_server.py` على 50000 + خادم 8080) — اختياري، خارج الوضع الافتراضي
 - ⚡ **RUN PAYLOAD** — تنفيذ أي كود JS في صندوق المتصفح مباشرة
   (`window.rwView` / `scratchWords` / `kernelBase` … مكشوفة)،
   مع زر تحميل `payloads/notification.js` محليًا

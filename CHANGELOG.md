@@ -5,6 +5,17 @@
 
 ---
 
+## 🚀 v1.1.1 — PC remote أصبح اختياريًا (الافتراضي: بدون PC) (2026-08-10)
+
+- **الوضع الافتراضي الآن on-device بالكامل**: `loadAndCommitRce` لم يعد يجلب
+  `remote.js` تلقائيًا — لا PC ولا خوادم مطلوبة من GitHub Pages وحدها.
+- `window.enableRemotePC()` جديد — يجلب `remote.js` ويشغّل REPL عند الطلب
+  (مع حارس `remoteJsLoaded` ضد الـ double-load + تقرير نتائج {ok,error}).
+- زر 📡 **PC REMOTE** في قسم payloads الواجهة — يُفعّل البعيد من الجهاز.
+- إشعار RCE صار: "RCE READY - DEEPSLOP on-device".
+- كشف `window.RCE_PC_IP`/`RCE_PORT` للواجهة/payloads.
+- README أُعيد تأطيره: PC اختياري، Pages تعمل وحدها.
+
 ## 📚 v1.1.0 — بحث 8 مستودعات قديمة + دمج المراجع (2026-08-10)
 
 حلّلنا بالكامل محتوى `/home/user/Documents/webp5/other&old-explolts/` (8 مستودعات)
