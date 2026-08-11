@@ -28,19 +28,16 @@
 
 ```
 deepslop/
-├── index.html            🖥️ Dashboard (RUN / PROBE / LOW_MEM / BEACON / sysinfo)
-├── exploit.js            🧬 سلسلة الاستغلال الكاملة (WebKit RCE + ROP + ماسح الأوفستس)
-├── remote.js             🛰️ WebSocket loader (REPL — يُحقن بعد RCE)
-├── ws_server.py          ⚙️ خادم REPL + POST /inject (منفذ 50000) + منارة ROP
-├── send_payload.py       📨 يرسل payload إلى الخادم (--host/--port)
-├── payloads/             📦 helloworld.js · notification.js · deepslop_info.js
-├── offsets/              🗂️ offsets.json (23 FW) · lapse-offsets.json (9.00–10.01)
-├── rop-worker.js         🧵 staging ROP عبر worker + setjmp/longjmp (10.00 — غير موصول)
-├── rop_slave.js          🤖 worker المرافق
-├── lapse-runtime.js      🧩 runtime lapse (9.00–10.01 — غير موصول، محروس FW)
-├── aioshellcode.js       💀 محمّل AIO الأصلي (inert — غير موصول)
-├── host/                 🌐 أدوات استضافة DNS+HTTPS (fakedns · host.py · log_server)
-├── research/             🔬 مراجع فئات ثغرات WebKit + عائلة structured-clone (INDEX.md)
+├── ds-research-core.js   🧠 محرك الأبحاث الأساسي (telemetry, benchmarks, payloads)
+├── research-dashboard.html 🖥️ Dashboard جديد (Glassmorphism) لتشغيل الحمولات
+├── exploit.js            🧬 سلسلة الاستغلال الكاملة (WebKit RCE + ماسح الأوفستس)
+├── remote.js             🛰️ WebSocket loader (REPL — يُحقن بعد RCE عبر مساحة _ds)
+├── ws_server.py          ⚙️ خادم REPL + معالجة تقارير البحث (منفذ 50000)
+├── research/payloads/    📦 31 حمولة بحثية مقسمة لـ 7 فئات مع `manifest.json`
+├── tools/compare.js      ⚖️ أداة مقارنة تقارير الأداء بين التحديثات
+├── offsets/              🗂️ offsets.json (23 FW)
+├── rop-worker.js         🧵 staging ROP عبر worker (غير موصول)
+├── host/                 🌐 أدوات استضافة DNS+HTTPS
 └── cat.jpg               🐱 أصل غير مستخدم (مرجعي)
 ```
 
@@ -97,38 +94,32 @@ python3 send_payload.py payloads/helloworld.js --host 192.168.1.50
 
 | الأمر | الوصف |
 |---|---|
-| `send <fichier.js>` | 📦 إرسال payload |
+| `research list` | 📋 عرض الحمولات المتوفرة |
+| `research run <name>` | 🚀 تشغيل حمولة معينة |
+| `research run-all` | ⚡ تشغيل جميع الحمولات المتوفرة |
+| `research report` | 📄 سحب تقرير الأداء الشامل |
+| `research capabilities`| 🔍 عرض قدرات المتصفح |
+| `send <fichier.js>` | 📦 إرسال payload عادي |
 | `offsets` / `scan` | 🎯 تقرير الأوفستس المكتشفة |
-| `resolve <addr>` | 🧭 حل عنوان → module+RVA |
-| `mem <addr> [n]` | 🔍 قراءة n qwords من الذاكرة |
-| `notify <texte>` | 🔔 إرسال إشعار PS5 |
 | `fire` | 💥 تشغيل `commitRce()` (crash renderer) |
-| `<code JS>` | ⚡ تنفيذ JS مباشر |
 
-### 🎛️ أوضاع الواجهة (`index.html`)
+### 🎛️ واجهة الأبحاث (`research-dashboard.html`)
 
-- ▶️ **RUN** — السلسلة الكاملة (RCE)
-- 🔬 **PROBE** — يتوقف بعد R/W + تسريب القواعد + فحص الأوفستس (لا notification)
-- 📡 **BEACON** — XHR متزامن إلى `/log/<msg>` (عمدًا، ليقبل قبل أي navigation)
+تمت ترقية الواجهة إلى **Research Dashboard** متكاملة:
+- 📊 **Telemetry**: تعرض معلومات النظام وقدرات الذاكرة بشكل مباشر.
+- 🚀 **Payload Runner**: شبكة لتشغيل أي من الـ 31 حمولة بحثية.
+- ⚡ **Run All**: تشغيل السلسلة كاملة واستخراج تقرير JSON شامل.
 
-### 📦 Payloads على الجهاز (بدون PC)
+### 📦 الحمولات البحثية (31 Payload)
 
-بعد الـ RCE تظهر شبكة الـ payloads (أزرار كبيرة في الصف العلوي، تعمل عبر
-`window.ps5kern` والـ syscalls النظيفة — **لا crash**):
-
-- ℹ️ **SYSINFO** — `pid()`/`pipe()`/`tid()` + تقرير stubs → إشعار PS5 + سجل
-- 🗑️ **FS PROBE** — حذف `ApplicationCache.db*` (مستخدمون 0-2) عبر `unlink()`
-- 📋 **REPORT** — bases + scan + ميزانية الذاكرة إلى السجل
-- 🛰️ **TEST SYSCALLS** — بطارية نظيفة (pipe ×2 + close) — إثبات تنفيذ syscall
-  حقيقي بدون kernel exploit
-- 👋 **HELLO WORLD** — self-test
-- 📊 **DEEPSLOP INFO** — تقرير `deepslopInfo` + `deepslopScan` + الذاكرة
-- 📡 **PC REMOTE** — اختياري: جلب `remote.js` و REPL عبر WebSocket
-  (`ws_server.py` على 50000 + خادم 8080)
-- 💥 **COMMIT RCE** — سلسلة ROP (إشعار + crash) يدويًا
-
-وفي **ADVANCED**: ⚡ RUN PAYLOAD (تنفيذ أي كود JS مع `window.rwView`/
-`scratchWords`/`kernelBase` مكشوفة) + زر تحميل `payloads/notification.js` محليًا.
+الحمولات مقسمة إلى 7 فئات أساسية (تُدار عبر `manifest.json`):
+1. **Environment**: معلومات النظام، القدرات، دقة الساعة.
+2. **Memory**: سرعة الحجز، أداء الـ GC، إمكانيات ArrayBuffer.
+3. **WebKit**: كشف الـ JIT، أداء WebAssembly، قدرات DOM/Fetch.
+4. **Network**: سرعة HTTP، استجابة WebSocket.
+5. **Graphics**: أداء Canvas و WebGL و `requestAnimationFrame`.
+6. **Process**: سرعة المعالج الأساسية، زمن استجابة الـ Event Loop.
+7. **Stability**: فحص ثبات ثغرة structured-clone.
 
 ### 🧪 اختبار الماسح (`tools/scan-test.js`)
 
@@ -162,6 +153,7 @@ effects (`deepslopStubs`/`mark`) تبقى في الغلاف.
 
 | الإصدار | التاريخ | أبرز ما فيه |
 |---|---|---|
+| 🔬 **v2.0.0** | 2026-08-11 | محرك أبحاث جديد (Research Framework) + واجهة Dashboard محدثة + 31 حمولة بحثية + أداة compare.js. |
 | 📚 **v1.1.0** | 2026-08-10 | تحليل 8 مستودعات قديمة + دمج المراجع: `research/` (فئات ثغرات WebKit: angler · dfg · poc · maxu + عائلة structured-clone: jordy · userland_only) + `host/` (أدوات DNS/HTTPS spoof) |
 | 🩹 **v1.0.1** | 2026-08-10 | مراجعة كاملة لكل ملف + إصلاح 9 أخطاء (أهمها `carrierSlots` وسباق `?go=1`) + حُرّاس FW + تحسينات خادم/واجهة |
 | 🚀 **v1.0.0** | — | الإطلاق الأولي: Dashboard، PROBE mode، ماسح أوفستس ذاتي، LOW_MEM، BEACON، REPL |

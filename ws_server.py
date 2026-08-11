@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-ws_server.py — Serveur Remote JS Loader pour PS5 FW 9.00
+ws_server.py — Remote JS Loader Server for PS5 FW 9.00
 
-Port unique 50000:
-  - PS5   → GET (WebSocket upgrade) → REPL interactif
-  - send_payload.py → POST /inject  → injection directe
-  - ROP chain beacon → connexion TCP brute (PS5_RCE_OK)
+Single port 50000:
+  - PS5   → GET (WebSocket upgrade) → Interactive REPL
+  - send_payload.py → POST /inject  → Direct injection
+  - ROP chain beacon → raw TCP connection (PS5_RCE_OK)
 
-IMPORTANT — le kit a besoin d'un second serveur statique HTTP sur le port 8080
-servant index.html, remote.js et offsets/ (l'exploit fetch remote.js depuis
-http://<PC>:8080/remote.js). Exemple: python3 -m http.server 8080 --directory deepslop
+IMPORTANT — the kit needs a second static HTTP server on port 8080
+serving index.html, remote.js and offsets/ (the exploit fetches remote.js from
+http://<PC>:8080/remote.js). Example: python3 -m http.server 8080 --directory deepslop
 
 Usage:
   py ws_server.py
-  py send_payload.py payloads/helloworld.js   (depuis un autre terminal)
+  py send_payload.py payloads/helloworld.js   (from another terminal)
 """
 
 import socket
@@ -24,15 +24,37 @@ import hashlib
 import struct
 import json
 import os
+import secrets
+import ssl
+import time
+import argparse
+from datetime import datetime
 
 HOST     = "0.0.0.0"
 PORT     = 50000
 WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-# File d'injection partagee entre le thread REPL et les requetes POST
+# Shared injection queue between REPL thread and POST requests
 _inject_q = queue.Queue()
-_ps5_conn = None   # connexion WebSocket PS5 active
+_ps5_conn = None   # Active PS5 WebSocket connection
 _ps5_lock = threading.Lock()
+
+_auth_token = None
+_no_auth = False
+_log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ws_server.log")
+
+def log_event(event_type, **kwargs):
+    """Log an event to ws_server.log as JSON line."""
+    record = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "event": event_type,
+    }
+    record.update(kwargs)
+    try:
+        with open(_log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception:
+        pass
 
 # ─── WebSocket helpers ────────────────────────────────────────────────────────
 
@@ -40,7 +62,7 @@ def ws_accept_key(key):
     return base64.b64encode(hashlib.sha1((key + WS_MAGIC).encode()).digest()).decode()
 
 def ws_handshake(conn, initial_data):
-    """Terminer le handshake WebSocket a partir des donnees deja lues."""
+    """Finish WebSocket handshake from already read data."""
     while b"\r\n\r\n" not in initial_data:
         chunk = conn.recv(4096)
         if not chunk:
@@ -55,12 +77,26 @@ def ws_handshake(conn, initial_data):
     key = headers.get("sec-websocket-key", "")
     if not key:
         return False
+
+    # Check HMAC Token Auth for WebSocket
+    if not _no_auth:
+        protocol = headers.get("sec-websocket-protocol", "")
+        expected_protocol = f"deepslop-{_auth_token}"
+        if expected_protocol not in protocol:
+            log_event("ws_auth_failure", headers=headers)
+            resp = "HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n"
+            conn.sendall(resp.encode())
+            return False
+
     resp = (
         "HTTP/1.1 101 Switching Protocols\r\n"
         "Upgrade: websocket\r\n"
         "Connection: Upgrade\r\n"
-        f"Sec-WebSocket-Accept: {ws_accept_key(key)}\r\n\r\n"
+        f"Sec-WebSocket-Accept: {ws_accept_key(key)}\r\n"
     )
+    if not _no_auth:
+        resp += f"Sec-WebSocket-Protocol: deepslop-{_auth_token}\r\n"
+    resp += "\r\n"
     conn.sendall(resp.encode())
     return True
 
@@ -111,7 +147,7 @@ def ws_send(conn, data, opcode=0x01):
     except Exception:
         return False
 
-# ─── Affichage PS5 ────────────────────────────────────────────────────────────
+# ─── PS5 Display ────────────────────────────────────────────────────────────
 
 def print_ps5(payload_bytes, prefix=""):
     try:
@@ -130,10 +166,10 @@ def print_ps5(payload_bytes, prefix=""):
     except Exception:
         print(f"\r  [PS5] {payload_bytes.decode('utf-8', errors='replace')}")
 
-# ─── Envoyer a la PS5 (thread-safe) ──────────────────────────────────────────
+# ─── Send to PS5 (thread-safe) ──────────────────────────────────────────
 
 def send_offsets_report(conn, timeout=5):
-    """Interroge deepslopScanOffsets() et retourne un rapport texte lisible."""
+    """Queries deepslopScanOffsets() and returns a readable text report."""
     try:
         if not ws_send(conn, json.dumps({"type": "eval",
                 "code": "JSON.stringify((typeof window.deepslopScanOffsets==='function')"
@@ -165,12 +201,12 @@ def ps5_eval(code, timeout=30):
     except queue.Empty:
         return {"status": "timeout", "error": "Timeout 30s"}
 
-# ─── Handler injection HTTP POST ──────────────────────────────────────────────
+# ─── HTTP POST Injection Handler ──────────────────────────────────────────────
 
 def handle_http_inject(conn, initial_data):
-    """Traiter une requete POST /inject depuis send_payload.py."""
+    """Handle a POST /inject request from send_payload.py."""
     try:
-        # Lire le reste si necessaire
+        # Read the rest if necessary
         data = initial_data
         while b"\r\n\r\n" not in data:
             chunk = conn.recv(4096)
@@ -180,6 +216,20 @@ def handle_http_inject(conn, initial_data):
         header_part = data.split(b"\r\n\r\n", 1)
         headers_raw = header_part[0].decode("utf-8", errors="replace")
         body = header_part[1] if len(header_part) > 1 else b""
+
+        # Check Auth
+        if not _no_auth:
+            auth_header_found = False
+            for line in headers_raw.split("\r\n"):
+                if line.lower().startswith("authorization:"):
+                    parts = line.split(":", 1)[1].strip().split()
+                    if len(parts) == 2 and parts[0].lower() == "bearer" and parts[1] == _auth_token:
+                        auth_header_found = True
+                        break
+            if not auth_header_found:
+                log_event("http_auth_failure", headers=headers_raw)
+                conn.sendall(b"HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n")
+                return
 
         # Content-Length
         content_length = 0
@@ -198,11 +248,13 @@ def handle_http_inject(conn, initial_data):
         else:
             code = msg.get("code", "")
             if not code.strip():
-                reply = {"status": "error", "error": "Pas de code"}
+                reply = {"status": "error", "error": "No code provided"}
             elif _ps5_conn is None:
-                reply = {"status": "error", "error": "Pas de PS5 connectee"}
+                reply = {"status": "error", "error": "No PS5 connected"}
             else:
+                log_event("ps5_eval_request", length=len(code))
                 reply = ps5_eval(code, timeout=30)
+                log_event("ps5_eval_response", status=reply.get("status"))
 
         body_resp = json.dumps(reply).encode("utf-8")
         http_resp = (
@@ -213,6 +265,7 @@ def handle_http_inject(conn, initial_data):
         ).encode() + body_resp
         conn.sendall(http_resp)
     except Exception as e:
+        log_event("http_inject_error", error=str(e))
         try:
             err = json.dumps({"status": "error", "error": str(e)}).encode()
             conn.sendall(b"HTTP/1.1 500 Error\r\nContent-Length: " + str(len(err)).encode() + b"\r\n\r\n" + err)
@@ -221,7 +274,7 @@ def handle_http_inject(conn, initial_data):
     finally:
         conn.close()
 
-# ─── Handler PS5 WebSocket ────────────────────────────────────────────────────
+# ─── PS5 WebSocket Handler ────────────────────────────────────────────────────
 
 def handle_ps5(conn, addr, initial_data):
     global _ps5_conn
@@ -230,7 +283,7 @@ def handle_ps5(conn, addr, initial_data):
         conn.close()
         return
 
-    # Une seule session active — refuser proprement une seconde PS5
+    # Only one active session — cleanly reject a second PS5
     with _ps5_lock:
         if _ps5_conn is not None:
             try:
@@ -241,31 +294,46 @@ def handle_ps5(conn, addr, initial_data):
             return
         _ps5_conn = conn
 
-    print(f"  [+] PS5 connectee depuis {addr[0]}:{addr[1]}")
+    print(f"  [+] PS5 connected from {addr[0]}:{addr[1]}")
+    log_event("ps5_connected", ip=addr[0], port=addr[1])
 
-    # Watcher: detecte la mort du renderer meme quand le REPL est bloque dans
-    # input() — ferme la socket; le prochain send echoue rapidement et la
-    # session se termine au lieu de pendre 30s.
+    # WebSocket Keepalive
+    last_pong = [time.time()]
     def watch_ps5():
+        global _ps5_conn
         while True:
+            time.sleep(15)
+            with _ps5_lock:
+                if _ps5_conn is None or _ps5_conn != conn:
+                    return
             try:
-                conn.getpeername()
+                ws_send(conn, b"ping", opcode=0x09) # Ping
             except Exception:
-                print("\n  [!] PS5 deconnectee (watcher)")
+                pass
+            
+            time.sleep(10)
+            if time.time() - last_pong[0] > 25: # Didn't receive pong in time
+                print("\n  [!] PS5 disconnected (keepalive timeout)")
+                log_event("ps5_disconnected", reason="keepalive_timeout")
                 try: conn.close()
                 except Exception: pass
+                
+                # Immediately release lock for graceful reconnect
+                with _ps5_lock:
+                    if _ps5_conn == conn:
+                        _ps5_conn = None
                 return
-            threading.Event().wait(3)
+    
     threading.Thread(target=watch_ps5, daemon=True).start()
 
-    # Message "ready" initial
+    # Initial "ready" message
     conn.settimeout(5)
     try:
         frame = ws_recv(conn)
         if frame and frame[0] == 0x01:
             info = json.loads(frame[1].decode("utf-8"))
             if info.get("type") == "ready":
-                print(f"\n  === PS5 Remote JS Loader connecte ===")
+                print(f"\n  === PS5 Remote JS Loader connected ===")
                 print(f"  FW        : {info.get('fw', '?')}")
                 print(f"  kernelBase: {info.get('kernelBase', '?')}")
                 print(f"  webkitBase: {info.get('webkitBase', '?')}")
@@ -277,24 +345,24 @@ def handle_ps5(conn, addr, initial_data):
                     pass
                 print("  =====================================\n")
     except socket.timeout:
-        # PS5 lente apres GC — laisser la frame "ready" etre consommee par le
-        # REPL ci-dessous au lieu de la laisser dans le buffer.
-        print("  [*] PS5 connectee (ready tardif — traite dans le REPL)")
+        # Slow PS5 after GC — let the "ready" frame be consumed by the
+        # REPL below instead of leaving it in the buffer.
+        print("  [*] PS5 connected (late ready — processed in REPL)")
     except Exception:
         pass
     finally:
         conn.settimeout(None)
 
-    # Pas d'auto-load — le renderer a besoin de temps pour GC le carrier (~72MB).
-    # L'utilisateur charge kernel.js manuellement une fois la session stable.
-    print("  [*] Session prete. Commandes:")
-    print("  [*]   send <fichier.js>     <- envoyer un payload")
-    print("  [*]   offsets | scan        <- offsets auto-detectes (deepslop)")
+    # No auto-load — renderer needs time to GC the carrier (~72MB).
+    # User loads kernel.js manually once the session is stable.
+    print("  [*] Session ready. Commands:")
+    print("  [*]   send <file.js>        <- send a payload")
+    print("  [*]   offsets | scan        <- auto-detected offsets (deepslop)")
     print("  [*]   resolve <addr>        <- module+RVA")
-    print("  [*]   mem <addr> [n]        <- lire la memoire")
-    print("  [*]   notify <texte>        <- notification PS5")
+    print("  [*]   mem <addr> [n]        <- read memory")
+    print("  [*]   notify <text>         <- PS5 notification")
     print("  [*]   fire                  <- ROP chain (crash renderer)")
-    print("  [*]   <code JS>             <- executer du JS directement\n")
+    print("  [*]   <JS code>             <- execute JS directly\n")
 
 
     def send_to_ps5(code, timeout=30):
@@ -308,14 +376,16 @@ def handle_ps5(conn, addr, initial_data):
         finally:
             conn.settimeout(None)
 
-    # Thread pour les injections send_payload.py
+    # Thread for send_payload.py injections
     def inject_worker():
         while True:
             try:
                 item = _inject_q.get(timeout=1)
             except queue.Empty:
-                try: conn.getpeername(); continue
-                except Exception: break
+                with _ps5_lock:
+                    if _ps5_conn != conn:
+                        break
+                continue
             frame = send_to_ps5(item["code"])
             if frame and frame != "timeout" and frame[0] == 0x01:
                 try:
@@ -333,18 +403,23 @@ def handle_ps5(conn, addr, initial_data):
 
     # REPL
     while True:
-        # Messages PS5 non-sollicites
+        # Unsolicited PS5 messages
         conn.setblocking(False)
         try:
             if conn.recv(1, socket.MSG_PEEK) == b"":
-                print("\n  [!] PS5 deconnectee"); break
+                print("\n  [!] PS5 disconnected"); break
             conn.setblocking(True)
             frame = ws_recv(conn)
-            if not frame: print("\n  [!] PS5 deconnectee"); break
-            if frame[0] == 0x08: print("\n  [!] PS5 deconnectee"); break
+            if not frame: print("\n  [!] PS5 disconnected"); break
+            if frame[0] == 0x08: print("\n  [!] PS5 disconnected"); break
+            if frame[0] == 0x0A: # Pong
+                last_pong[0] = time.time()
+                continue
             if frame[0] == 0x01: print_ps5(frame[1])
         except BlockingIOError:
             pass
+        except Exception:
+            print("\n  [!] PS5 disconnected"); break
         conn.setblocking(True)
 
         try:
@@ -356,31 +431,59 @@ def handle_ps5(conn, addr, initial_data):
                 conn.close(); return
 
             if first.lower() == "help":
-                print("  send <fichier.js>  — Envoyer un fichier JS")
-                print("  fire               — Notif PS5 + crash renderer (commitRce)")
-                print("  offsets            — Afficher les offsets auto-detectes (deepslop)")
-                print("  scan               — Relancer le rapport de scan d'offsets")
-                print("  resolve <addr>     — Resoudre addr vers module+RVA")
-                print("  mem <addr> [n]     — Lire n qwords (primitives deepslop)")
-                print("  notify <texte>     — Notification PS5 (sendNotifNatural)")
-                print("  <code JS>          — Executer (ligne vide pour valider)")
-                print("  exit               — Quitter")
-                print("  Ou: py send_payload.py <fichier.js>  (autre terminal)")
+                print("  send <file.js>     — Send a JS file")
+                print("  research list       - List available payloads")
+                print("  research run <name> - Run a specific payload")
+                print("  research run-all    - Run all payloads")
+                print("  research report     - Pull full telemetry report")
+                print("  fire               — PS5 notif + crash renderer (commitRce)")
+                print("  offsets            — Show auto-detected offsets (deepslop)")
+                print("  scan               — Relaunch offset scan report")
+                print("  resolve <addr>     — Resolve addr to module+RVA")
+                print("  mem <addr> [n]     — Read n qwords (deepslop primitives)")
+                print("  notify <text>      — PS5 notification (sendNotifNatural)")
+                print("  <JS code>          — Execute (empty line to submit)")
+                print("  exit               — Quit")
+                print("  Or: py send_payload.py <file.js>  (other terminal)")
                 continue
 
             if first.lower() in ("fire", "commit"):
+                log_event("command_fire")
                 ws_send(conn, json.dumps({"type": "fire"}))
                 conn.settimeout(5)
                 try:
                     f = ws_recv(conn)
                     if f and f[0] == 0x01: print_ps5(f[1])
                 except socket.timeout:
-                    print("  [OK] commitRce declenche (renderer a certainement crashe)")
+                    print("  [OK] commitRce triggered (renderer likely crashed)")
                 finally:
                     conn.settimeout(None)
                 continue
 
-            if first.lower() in ("offsets", "scan"):
+            if first.lower().startswith("research "):
+                parts = first.split(" ")
+                if len(parts) < 2:
+                    print("Usage: research <list|run|run-all|report|capabilities> [args]")
+                    continue
+                
+                subcmd = parts[1]
+                if subcmd == "list":
+                    ws_send(conn, json.dumps({"type": "research", "command": "list"}))
+                elif subcmd == "run" and len(parts) > 2:
+                    ws_send(conn, json.dumps({"type": "research", "command": "run", "name": parts[2]}))
+                elif subcmd == "run-all":
+                    cat = parts[2] if len(parts) > 2 else ""
+                    ws_send(conn, json.dumps({"type": "research", "command": "run-all", "category": cat}))
+                elif subcmd == "report":
+                    ws_send(conn, json.dumps({"type": "research", "command": "report"}))
+                elif subcmd == "capabilities":
+                    ws_send(conn, json.dumps({"type": "research", "command": "capabilities"}))
+                else:
+                    print("  [!] Unknown research command or missing arguments.")
+                continue
+
+            if first.lower().startswith("offsets") or first.lower() == "scan":
+                log_event("command_offsets")
                 ws_send(conn, json.dumps({"type": "offsets"}))
                 conn.settimeout(5)
                 try:
@@ -399,11 +502,11 @@ def handle_ps5(conn, addr, initial_data):
                                 print("  [OFFSETS] trampoline: " +
                                       str(s.get("verified", {}).get("trampolineBytes", "?")))
                             else:
-                                print("  [OFFSETS] scan non disponible (pas encore de R/W)")
+                                print("  [OFFSETS] scan unavailable (no R/W yet)")
                         except Exception as e:
-                            print(f"  [!] Parse offsets: {e}")
+                            print(f"  [!] Parse offsets error: {e}")
                     else:
-                        print("  [!] Pas de reponse")
+                        print("  [!] No response")
                 except socket.timeout:
                     print("  [!] Timeout")
                 finally:
@@ -414,6 +517,7 @@ def handle_ps5(conn, addr, initial_data):
                 addr = first[8:].strip()
                 try:
                     n = int(addr, 0)
+                    log_event("command_resolve", addr=n)
                     ws_send(conn, json.dumps({"type": "resolve", "addr": n}))
                     conn.settimeout(5)
                     try:
@@ -424,7 +528,7 @@ def handle_ps5(conn, addr, initial_data):
                     finally:
                         conn.settimeout(None)
                 except ValueError:
-                    print("  [!] Adresse invalide")
+                    print("  [!] Invalid address")
                 continue
 
             if first.lower().startswith("mem "):
@@ -432,6 +536,7 @@ def handle_ps5(conn, addr, initial_data):
                 try:
                     a = int(parts[0], 0)
                     cnt = int(parts[1], 0) if len(parts) > 1 else 1
+                    log_event("command_mem", addr=a, count=cnt)
                     ws_send(conn, json.dumps({"type": "mem", "addr": a, "count": cnt}))
                     conn.settimeout(5)
                     try:
@@ -442,12 +547,13 @@ def handle_ps5(conn, addr, initial_data):
                     finally:
                         conn.settimeout(None)
                 except ValueError:
-                    print("  [!] Syntaxe: mem <addr> [n]")
+                    print("  [!] Syntax: mem <addr> [n]")
                 continue
 
             if first.lower().startswith("notify "):
                 text = first[7:].strip()
                 if text:
+                    log_event("command_notify", text=text)
                     ws_send(conn, json.dumps({"type": "eval",
                         "code": f"send_notification({json.dumps(text)});'ok'"}))
                     conn.settimeout(5)
@@ -455,7 +561,7 @@ def handle_ps5(conn, addr, initial_data):
                         f = ws_recv(conn)
                         if f and f[0] == 0x01: print_ps5(f[1])
                     except socket.timeout:
-                        print("  [OK] notification envoyee")
+                        print("  [OK] notification sent")
                     finally:
                         conn.settimeout(None)
                 continue
@@ -466,17 +572,18 @@ def handle_ps5(conn, addr, initial_data):
                     if os.path.isfile(p):
                         with open(p, encoding="utf-8") as f:
                             code = f.read()
-                        print(f"  [*] Envoi '{p}' ({len(code)} octets)...")
+                        log_event("command_send", file=fname, length=len(code))
+                        print(f"  [*] Sending '{p}' ({len(code)} bytes)...")
                         frame = send_to_ps5(code)
                         if frame == "timeout": print("  [!] Timeout")
                         elif frame and frame[0] == 0x01: print_ps5(frame[1])
-                        elif not frame: print("  [!] PS5 deconnectee"); break
+                        elif not frame: print("  [!] PS5 disconnected"); break
                         break
                 else:
-                    print(f"  [!] Fichier introuvable: {fname}")
+                    print(f"  [!] File not found: {fname}")
                 continue
 
-            # Code JS multi-ligne
+            # Multi-line JS code
             lines = [first] if first else []
             while True:
                 line = input()
@@ -485,23 +592,27 @@ def handle_ps5(conn, addr, initial_data):
             code = "\n".join(lines)
             if not code.strip(): continue
 
+            log_event("command_eval", length=len(code))
             frame = send_to_ps5(code)
             if frame == "timeout": print("  [!] Timeout (30s)")
             elif frame and frame[0] == 0x01: print_ps5(frame[1])
-            elif not frame: print("  [!] PS5 deconnectee"); break
+            elif not frame: print("  [!] PS5 disconnected"); break
 
         except (EOFError, KeyboardInterrupt):
-            print("\n  [!] Interruption"); break
+            print("\n  [!] Interrupted"); break
 
+    log_event("ps5_disconnected", reason="repl_exit")
     with _ps5_lock:
-        _ps5_conn = None
-    conn.close()
-    print("  [*] Session terminee. En attente PS5...\n")
+        if _ps5_conn == conn:
+            _ps5_conn = None
+    try: conn.close()
+    except Exception: pass
+    print("  [*] Session ended. Waiting for PS5...\n")
 
-# ─── Dispatcher (detection WS vs HTTP) ───────────────────────────────────────
+# ─── Dispatcher (detect WS vs HTTP) ───────────────────────────────────────
 
 def dispatch(conn, addr):
-    """Detecter si c'est la PS5 (WebSocket GET) ou send_payload.py (POST HTTP)."""
+    """Detect if it's the PS5 (WebSocket GET) or send_payload.py (HTTP POST)."""
     conn.settimeout(10)
     try:
         initial = conn.recv(8)
@@ -517,16 +628,18 @@ def dispatch(conn, addr):
     elif initial[:3] == b"GET":
         handle_ps5(conn, addr, initial)
     else:
-        # ROP chain beacon: connexion TCP brute — la ROP chain PS5 ecrit
-        # "PS5_RCE_OK\\n" puis ferme. On la consomme et on l'affiche.
+        # ROP chain beacon: raw TCP connection — the PS5 ROP chain writes
+        # "PS5_RCE_OK\n" then closes. We consume and display it.
         try:
             conn.settimeout(5)
             rest = conn.recv(64) if len(initial) < 64 else b""
             beacon = (initial + rest).decode("utf-8", errors="replace").strip()
             if "PS5_RCE_OK" in beacon:
-                print("\n  [OK] === PS5 ROP CHAIN ARRIVEE (RCE_OK) ===")
+                log_event("rop_chain_success")
+                print("\n  [OK] === PS5 ROP CHAIN ARRIVED (RCE_OK) ===")
             else:
-                print(f"\n  [!] Connexion TCP inattendue: {beacon[:64]!r}")
+                log_event("unexpected_tcp_connection", data=beacon[:64])
+                print(f"\n  [!] Unexpected TCP connection: {beacon[:64]!r}")
         except Exception:
             pass
         finally:
@@ -535,21 +648,54 @@ def dispatch(conn, addr):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    global _auth_token, _no_auth
+    parser = argparse.ArgumentParser(description="PS5 Remote JS Loader Server")
+    parser.add_argument("--no-auth", action="store_true", help="Disable HMAC Token Authentication")
+    args = parser.parse_args()
+
+    _no_auth = args.no_auth
+
     print(f"\n  === PS5 Remote JS Loader Server ===")
+    if not _no_auth:
+        _auth_token = secrets.token_hex(16)
+        print(f"  [+] Auth Token: {_auth_token}")
+    else:
+        print(f"  [!] Auth Disabled (--no-auth)")
+
+    # Optional TLS
+    cert_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server.pem")
+    use_tls = os.path.exists(cert_path)
+    if use_tls:
+        print(f"  [+] TLS Active (server.pem found)")
+    else:
+        print(f"  [-] TLS Inactive (server.pem not found)")
+
     print(f"  Port {PORT} : PS5 WebSocket + send_payload.py")
     print(f"  Usage     : py send_payload.py payloads/helloworld.js\n")
+
+    log_event("server_start", port=PORT, tls=use_tls, auth=not _no_auth)
 
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind((HOST, PORT))
     srv.listen(5)
 
+    if use_tls:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(cert_path)
+        srv = context.wrap_socket(srv, server_side=True)
+
     try:
         while True:
-            conn, addr = srv.accept()
-            threading.Thread(target=dispatch, args=(conn, addr), daemon=True).start()
+            try:
+                conn, addr = srv.accept()
+                threading.Thread(target=dispatch, args=(conn, addr), daemon=True).start()
+            except ssl.SSLError as e:
+                log_event("ssl_error", error=str(e))
+                print(f"\n  [!] SSL Error: {e}")
     except KeyboardInterrupt:
-        print("\n  [!] Arret")
+        print("\n  [!] Stopping")
+        log_event("server_stop")
     finally:
         srv.close()
 

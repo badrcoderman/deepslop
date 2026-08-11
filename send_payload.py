@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-send_payload.py -- Envoie un fichier .js a la PS5.
-Equivalent de Y2JB's payload_sender.py.
+send_payload.py -- Sends a .js file to the PS5.
+Equivalent to Y2JB's payload_sender.py.
 
 Usage:
   py send_payload.py payloads/helloworld.js
-  py send_payload.py payloads/notification.js
+  py send_payload.py payloads/notification.js --token <hex_token>
 
-ws_server.py doit etre en cours d'execution (port 50000).
-La PS5 doit etre connectee.
+ws_server.py must be running (port 50000).
+The PS5 must be connected.
 """
 
 import socket
@@ -16,40 +16,54 @@ import sys
 import os
 import json
 import argparse
+import ssl
 
 SERVER_IP   = "127.0.0.1"
 SERVER_PORT = 50000
 
-def send_payload(filepath, server_ip=SERVER_IP, server_port=SERVER_PORT):
+def send_payload(filepath, token=None, server_ip=SERVER_IP, server_port=SERVER_PORT, use_tls=False):
     if not os.path.isfile(filepath):
         alt = os.path.join(os.path.dirname(__file__), filepath)
         filepath = alt if os.path.isfile(alt) else None
 
     if not filepath:
-        print(f"  [!] Fichier introuvable: {sys.argv[1]}")
+        print(f"  [!] File not found: {sys.argv[1]}")
         sys.exit(1)
 
     with open(filepath, "r", encoding="utf-8") as f:
         code = f.read()
 
-    print(f"  [+] {os.path.basename(filepath)} ({len(code)} octets)")
+    print(f"  [+] {os.path.basename(filepath)} ({len(code)} bytes)")
 
     body = json.dumps({"code": code}).encode("utf-8")
-    request = (
-        f"POST /inject HTTP/1.1\r\n"
-        f"Host: {server_ip}:{server_port}\r\n"
-        f"Content-Type: application/json\r\n"
-        f"Content-Length: {len(body)}\r\n"
-        f"Connection: close\r\n\r\n"
-    ).encode() + body
+    
+    headers = [
+        f"POST /inject HTTP/1.1",
+        f"Host: {server_ip}:{server_port}",
+        f"Content-Type: application/json",
+        f"Content-Length: {len(body)}"
+    ]
+    
+    if token:
+        headers.append(f"Authorization: Bearer {token}")
+        
+    headers.append("Connection: close")
+    
+    request = "\r\n".join(headers).encode() + b"\r\n\r\n" + body
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if use_tls:
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            sock = context.wrap_socket(sock)
+            
         sock.connect((server_ip, server_port))
         sock.sendall(request)
     except Exception as e:
-        print(f"  [!] Connexion impossible ({server_ip}:{server_port}): {e}")
-        print(f"  [!] ws_server.py est-il en cours d'execution?")
+        print(f"  [!] Connection failed ({server_ip}:{server_port}): {e}")
+        print(f"  [!] Is ws_server.py running?")
         sys.exit(1)
 
     sock.settimeout(35)
@@ -60,42 +74,49 @@ def send_payload(filepath, server_ip=SERVER_IP, server_port=SERVER_PORT):
             if not chunk: break
             data += chunk
 
-        # Extraire le JSON depuis la reponse HTTP
+        # Extract JSON from the HTTP response
         if b"\r\n\r\n" in data:
             body_resp = data.split(b"\r\n\r\n", 1)[1]
         else:
             body_resp = data
 
+        if not body_resp:
+            print("  [!] Empty response from server")
+            sys.exit(1)
+
         result = json.loads(body_resp.decode("utf-8"))
         if result.get("status") == "ok":
             val = result.get("value", "")
-            print(f"  [PS5 OK] {val if val and val != 'undefined' else '(pas de valeur de retour)'}")
+            print(f"  [PS5 OK] {val if val and val != 'undefined' else '(no return value)'}")
         elif result.get("status") == "timeout":
-            print("  [!] Timeout — pas de reponse de la PS5")
+            print("  [!] Timeout — no response from PS5")
         else:
             print(f"  [PS5 ERR] {result.get('error', '?')}")
     except socket.timeout:
         print("  [!] Timeout (35s)")
     except Exception as e:
-        print(f"  [!] Erreur: {e}")
+        print(f"  [!] Error: {e}")
     finally:
         sock.close()
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Envoie un fichier .js a la PS5 (ws_server.py port 50000)")
-    parser.add_argument("file", nargs="?", help="fichier .js a envoyer")
+        description="Sends a .js file to the PS5 (ws_server.py port 50000)")
+    parser.add_argument("file", nargs="?", help=".js file to send")
     parser.add_argument("--host", default=os.environ.get("PS5_SERVER", SERVER_IP),
-                        help="IP du serveur ws_server.py (defaut %(default)s)")
+                        help="IP of ws_server.py server (default %(default)s)")
     parser.add_argument("--port", type=int, default=SERVER_PORT,
-                        help="port ws_server.py (defaut %(default)s)")
+                        help="ws_server.py port (default %(default)s)")
+    parser.add_argument("--token", default=os.environ.get("DEEPSLOP_TOKEN"),
+                        help="Auth token (defaults to DEEPSLOP_TOKEN env var)")
+    parser.add_argument("--tls", action="store_true", help="Use TLS to connect")
     args = parser.parse_args()
 
     if not args.file:
-        print("Usage: py send_payload.py <fichier.js> [--host IP] [--port PORT]")
+        print("Usage: py send_payload.py <file.js> [--host IP] [--port PORT] [--token TOKEN] [--tls]")
         print("       py send_payload.py payloads/helloworld.js")
         sys.exit(1)
-    send_payload(args.file, args.host, args.port)
+    send_payload(args.file, args.token, args.host, args.port, args.tls)
 
 if __name__ == "__main__":
     main()

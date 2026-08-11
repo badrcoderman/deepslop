@@ -5,7 +5,17 @@
 
 ---
 
-## 🧪 v1.2.2 — scanKernelStubs أصبح وحدة قابلة للاختبار + أول اختبار تنفيذي (2026-08-10)
+## 🔬 v2.0.0 — DeepSlop Userland Research Framework (2026-08-11)
+
+- **Core Runtime (`ds-research-core.js`)**: محرك جديد لجمع القياسات (telemetry) والأداء (benchmarks)، واكتشاف القدرات (capabilities)، وإدارة حمولات البحث (payload manager).
+- **Research Payloads (31 حمولة بحثية)**: حمولات مقسمة إلى 7 أقسام (Environment, Memory, WebKit, Network, Graphics, Process, Stability) تعمل كـ IIFEs معتمدة على `manifest.json`.
+- **Dashboard (`research-dashboard.html`)**: واجهة بتصميم Glassmorphism تعرض القدرات وتشغل الحمولات (فردي أو الكل).
+- **أدوات الـ PC**: 
+  - إضافة أوامر `research` (`list/run/run-all/report/capabilities`) في `ws_server.py`.
+  - أداة `tools/compare.js` لمقارنة تقارير JSON واستخراج الفروقات بين إصدارات الـ FW.
+- **إصلاحات**: مساحة `window._ds` في `remote.js` وإصلاح (closure bug) في `index.html`.
+
+## 🧪 v2.0.0-rc1 — scanKernelStubs أصبح وحدة قابلة للاختبار + أول اختبار تنفيذي (2026-08-10)
 
 - **`kernel-stubs.js` (جديد)**: الماسح النقي لنمط stubs الكيرنل — بلا DOM ولا
   آثار جانبية. `exploit.js` يستدعيه الآن (نفس السلوك تمامًا: نافذة ±0x20000،

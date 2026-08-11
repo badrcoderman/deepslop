@@ -1,0 +1,312 @@
+[
+  {
+    "name": "env-sysinfo",
+    "version": "1.0.0",
+    "description": "System information, UA, hardware concurrency, memory",
+    "category": "environment",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 100
+  },
+  {
+    "name": "env-runtime-info",
+    "version": "1.0.0",
+    "description": "JSC/WebKit runtime properties and engine detection",
+    "category": "environment",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 100
+  },
+  {
+    "name": "env-capability-scan",
+    "version": "1.0.0",
+    "description": "Exhaustive API availability test",
+    "category": "environment",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 500
+  },
+  {
+    "name": "env-clock-bench",
+    "version": "1.0.0",
+    "description": "Timer precision and stability",
+    "category": "environment",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 5000
+  },
+  {
+    "name": "mem-alloc-bench",
+    "version": "1.0.0",
+    "description": "Allocation throughput across sizes",
+    "category": "memory",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 10000
+  },
+  {
+    "name": "mem-gc-bench",
+    "version": "1.0.0",
+    "description": "GC pause detection and measurement",
+    "category": "memory",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 10000
+  },
+  {
+    "name": "mem-typed-array-bench",
+    "version": "1.0.0",
+    "description": "Typed array read/write throughput",
+    "category": "memory",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 5000
+  },
+  {
+    "name": "mem-arraybuffer-bench",
+    "version": "1.0.0",
+    "description": "ArrayBuffer transfers and cloning",
+    "category": "memory",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 5000
+  },
+  {
+    "name": "mem-pressure",
+    "version": "1.0.0",
+    "description": "Allocation ceiling to OOM",
+    "category": "memory",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 15000
+  },
+  {
+    "name": "mem-heap-stats",
+    "version": "1.0.0",
+    "description": "performance.memory and manual estimates",
+    "category": "memory",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 2000
+  },
+  {
+    "name": "wk-jsc-bench",
+    "version": "1.0.0",
+    "description": "JSC JS micro-benchmarks",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 15000
+  },
+  {
+    "name": "wk-jit-detect",
+    "version": "1.0.0",
+    "description": "JIT tier detection via timing",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 5000
+  },
+  {
+    "name": "wk-wasm-detect",
+    "version": "1.0.0",
+    "description": "WASM feature probes",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 500
+  },
+  {
+    "name": "wk-wasm-bench",
+    "version": "1.0.0",
+    "description": "WASM math/memory benchmarks",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["WebAssembly"],
+    "estimated_duration_ms": 5000
+  },
+  {
+    "name": "wk-worker-bench",
+    "version": "1.0.0",
+    "description": "Worker spawn and IPC latency",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["Worker"],
+    "estimated_duration_ms": 5000
+  },
+  {
+    "name": "wk-sab-test",
+    "version": "1.0.0",
+    "description": "SharedArrayBuffer and Atomics",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["SharedArrayBuffer"],
+    "estimated_duration_ms": 2000
+  },
+  {
+    "name": "wk-idb-bench",
+    "version": "1.0.0",
+    "description": "IndexedDB throughput",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["IndexedDB"],
+    "estimated_duration_ms": 10000
+  },
+  {
+    "name": "wk-dom-bench",
+    "version": "1.0.0",
+    "description": "DOM operation throughput",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 10000
+  },
+  {
+    "name": "wk-fetch-bench",
+    "version": "1.0.0",
+    "description": "Fetch API throughput",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["fetch"],
+    "estimated_duration_ms": 10000
+  },
+  {
+    "name": "wk-api-compat",
+    "version": "1.0.0",
+    "description": "Browser API instantiation testing",
+    "category": "webkit",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 1000
+  },
+  {
+    "name": "net-http-bench",
+    "version": "1.0.0",
+    "description": "HTTP latency and throughput",
+    "category": "network",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["XMLHttpRequest"],
+    "estimated_duration_ms": 15000
+  },
+  {
+    "name": "net-ws-latency",
+    "version": "1.0.0",
+    "description": "WebSocket RTT and connect time",
+    "category": "network",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["WebSocket"],
+    "estimated_duration_ms": 5000
+  },
+  {
+    "name": "net-info",
+    "version": "1.0.0",
+    "description": "Network interfaces and IPv6 tests",
+    "category": "network",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 2000
+  },
+  {
+    "name": "gfx-canvas-bench",
+    "version": "1.0.0",
+    "description": "Canvas 2D rendering throughput",
+    "category": "graphics",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["Canvas2D"],
+    "estimated_duration_ms": 10000
+  },
+  {
+    "name": "gfx-webgl-report",
+    "version": "1.0.0",
+    "description": "WebGL capabilities and limits",
+    "category": "graphics",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["WebGL"],
+    "estimated_duration_ms": 500
+  },
+  {
+    "name": "gfx-webgl-bench",
+    "version": "1.0.0",
+    "description": "WebGL rendering throughput",
+    "category": "graphics",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["WebGL"],
+    "estimated_duration_ms": 10000
+  },
+  {
+    "name": "gfx-frame-bench",
+    "version": "1.0.0",
+    "description": "rAF consistency and jank detection",
+    "category": "graphics",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": ["rAF"],
+    "estimated_duration_ms": 10000
+  },
+  {
+    "name": "proc-event-loop",
+    "version": "1.0.0",
+    "description": "Microtask vs macrotask latency",
+    "category": "process",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 5000
+  },
+  {
+    "name": "proc-cpu-bench",
+    "version": "1.0.0",
+    "description": "Integer and FP arithmetic",
+    "category": "process",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 15000
+  },
+  {
+    "name": "proc-cap-matrix",
+    "version": "1.0.0",
+    "description": "Aggregate capability matrix",
+    "category": "process",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 1000
+  },
+  {
+    "name": "stab-exploit",
+    "version": "1.0.0",
+    "description": "Exploit stability harness",
+    "category": "stability",
+    "minimum_firmware": "9.00",
+    "maximum_firmware": "99.99",
+    "required_capabilities": [],
+    "estimated_duration_ms": 60000
+  }
+]

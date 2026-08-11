@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSlop Research Dashboard</title>
+    <!-- Use same glassmorphism design as index.html -->
+    <style>
+        :root {
+            --bg-base: #0f172a;
+            --bg-glass: rgba(30, 41, 59, 0.7);
+            --bg-glass-hover: rgba(51, 65, 85, 0.8);
+            --border-glass: rgba(148, 163, 184, 0.1);
+            --accent-primary: #38bdf8;
+            --accent-success: #34d399;
+            --accent-warning: #fbbf24;
+            --accent-danger: #f87171;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            --font-sans: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(52, 211, 153, 0.05) 0%, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+        h2 {
+            margin: 0 0 16px 0;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--accent-primary);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-primary);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .metric-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-value {
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+            border: 1px solid var(--border-glass);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--bg-glass-hover);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn.primary {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-primary);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+        
+        .btn.primary:hover:not(:disabled) {
+            background: rgba(56, 189, 248, 0.2);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tbody tr:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            background: rgba(255,255,255,0.1);
+            margin-right: 4px;
+        }
+        .tag.AVAILABLE, .tag.SUCCESS { background: rgba(52, 211, 153, 0.1); color: var(--accent-success); }
+        .tag.UNAVAILABLE { background: rgba(251, 191, 36, 0.1); color: var(--accent-warning); }
+        .tag.FAILED { background: rgba(248, 113, 113, 0.1); color: var(--accent-danger); }
+
+        .log-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            height: 300px;
+            overflow-y: auto;
+            border: 1px inset var(--border-glass);
+        }
+
+        .log-line {
+            margin: 0 0 4px 0;
+            word-wrap: break-word;
+        }
+        
+        .log-line .level-INFO { color: var(--text-primary); }
+        .log-line .level-WARN { color: var(--accent-warning); }
+        .log-line .level-ERROR { color: var(--accent-danger); }
+        .log-line .level-DEBUG { color: var(--text-secondary); }
+
+        /* Cap matrix */
+        .cap-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+        }
+        .cap-item {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-glass);
+            display: flex;
+            justify-content: space-between;
+        }
+        .cap-item.has-true { border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.05); }
+        .cap-item.has-false { border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.05); }
+
+    </style>
+</head>
+<body>
+
+    <div class="glass-panel header">
+        <div>
+            <h1>DeepSlop Research Lab</h1>
+            <div style="margin-top: 8px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.875rem;">
+                Standalone userland research dashboard
+            </div>
+        </div>
+        <div id="statusBadge" class="status-badge">Booting runtime...</div>
+    </div>
+
+    <div class="grid">
+        <div class="glass-panel" style="grid-column: span 2;">
+            <h2>Session Info</h2>
+            <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="metric-card">
+                    <div class="metric-label">Firmware</div>
+                    <div class="metric-value" id="infoFw">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">WebKit Version</div>
+                    <div class="metric-value" id="infoWk">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Session ID</div>
+                    <div class="metric-value" id="infoSession">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Capabilities</div>
+                    <div class="metric-value" id="infoCaps">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Capabilities Matrix -->
+    <div class="glass-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2>Capability Matrix</h2>
+            <button class="btn" onclick="document.getElementById('capGrid').style.display = document.getElementById('capGrid').style.display === 'none' ? 'grid' : 'none'">Toggle Details</button>
+        </div>
+        <div id="capGrid" class="cap-grid" style="display: none;">
+            <!-- Populated via JS -->
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Payload Runner -->
+        <div class="glass-panel" style="grid-column: span 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2>Payload Library</h2>
+                <div>
+                    <button class="btn" onclick="runAllPayloads()" id="btnRunAll">▶ Run All</button>
+                    <button class="btn" onclick="exportJSON()">⬇ JSON</button>
+                    <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+                </div>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payloadTableBody">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Telemetry Log -->
+        <div class="glass-panel" style="grid-column: span 2;">
+            <h2>Telemetry Log</h2>
+            <div id="logContainer" class="log-container"></div>
+        </div>
+    </div>
+
+    <!-- DSResearch Runtime Loader -->
+    <script>
+        // Provide window.addLog for the DSResearch runtime to use
+        window.addLog = function(msg) {
+            const container = document.getElementById('logContainer');
+            if (!container) return;
+            
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            
+            let levelClass = '';
+            if (msg.indexOf('[DSR:INFO]') >= 0) levelClass = 'level-INFO';
+            else if (msg.indexOf('[DSR:WARN]') >= 0) levelClass = 'level-WARN';
+            else if (msg.indexOf('[DSR:ERROR]') >= 0) levelClass = 'level-ERROR';
+            else if (msg.indexOf('[DSR:DEBUG]') >= 0) levelClass = 'level-DEBUG';
+            
+            div.innerHTML = `<span class="${levelClass}">${msg}</span>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        };
+
+        let isRunning = false;
+        let registeredPayloads = [];
+
+        async function initDashboard() {
+            try {
+                // 1. Load core runtime
+                window.addLog("[DSR:INFO] Loading ds-research-core.js...");
+                await loadScript("ds-research-core.js");
+                
+                if (!window.DSResearch) {
+                    throw new Error("DSResearch not available after loading core.");
+                }
+
+                // Populate Session Info
+                document.getElementById('infoFw').textContent = window.DSResearch.firmware;
+                document.getElementById('infoWk').textContent = window.DSResearch.webkitVersion;
+                document.getElementById('infoSession').textContent = window.DSResearch.sessionId;
+                
+                // Populate Capability Matrix
+                const caps = window.DSResearch.capabilities;
+                let availableCount = 0;
+                let totalCount = 0;
+                const capGrid = document.getElementById('capGrid');
+                
+                for (const [key, val] of Object.entries(caps)) {
+                    totalCount++;
+                    if (val) availableCount++;
+                    
+                    const div = document.createElement('div');
+                    div.className = `cap-item has-${val}`;
+                    div.innerHTML = `<span>${key}</span><span>${val ? '✓' : '✗'}</span>`;
+                    capGrid.appendChild(div);
+                }
+                document.getElementById('infoCaps').textContent = `${availableCount}/${totalCount}`;
+
+                // 2. Load Manifest
+                window.addLog("[DSR:INFO] Fetching payload manifest...");
+                const manifestRes = await fetch("research/payloads/manifest.json");
+                const manifests = await manifestRes.json();
+                
+                // 3. Load all payload scripts
+                for (const m of manifests) {
+                    const path = `research/payloads/${m.category === 'environment' ? 'env' : m.category === 'memory' ? 'memory' : m.category === 'webkit' ? 'webkit' : m.category === 'network' ? 'network' : m.category === 'graphics' ? 'graphics' : m.category === 'process' ? 'process' : 'stability'}/${m.name.split('-').slice(1).join('-')}.js`;
+                    window.addLog(`[DSR:DEBUG] Loading ${path}...`);
+                    try {
+                        await loadScript(path);
+                    } catch (e) {
+                        window.addLog(`[DSR:WARN] Failed to load ${path}: ${e}`);
+                    }
+                }
+
+                // 4. Render UI
+                renderTable();
+                
+                document.getElementById('statusBadge').textContent = 'Ready';
+                document.getElementById('statusBadge').style.background = 'rgba(52, 211, 153, 0.1)';
+                document.getElementById('statusBadge').style.color = 'var(--accent-success)';
+                document.getElementById('statusBadge').style.borderColor = 'rgba(52, 211, 153, 0.2)';
+
+            } catch (e) {
+                window.addLog(`[DSR:ERROR] Initialization failed: ${e}`);
+                document.getElementById('statusBadge').textContent = 'Error';
+                document.getElementById('statusBadge').style.color = 'var(--accent-danger)';
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('payloadTableBody');
+            tbody.innerHTML = '';
+            
+            registeredPayloads = window.DSResearch.list();
+            
+            for (const p of registeredPayloads) {
+                const tr = document.createElement('tr');
+                tr.id = `row-${p.name}`;
+                
+                const val = window.DSResearch.validate(p.name);
+                const statusTag = `<span class="tag ${p.status}" id="tag-${p.name}">${p.status}</span>`;
+                
+                tr.innerHTML = `
+                    <td><span class="tag">${p.category}</span></td>
+                    <td><strong>${p.name}</strong></td>
+                    <td style="color: var(--text-secondary); font-size: 0.75rem;">${p.description}</td>
+                    <td>${statusTag}</td>
+                    <td id="dur-${p.name}">--</td>
+                    <td>
+                        <button class="btn primary" onclick="runSingle('${p.name}')" id="btn-${p.name}" ${!val.valid ? 'disabled title="' + val.reason + '"' : ''}>Run</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        async function runSingle(name) {
+            if (isRunning) return;
+            isRunning = true;
+            
+            const btn = document.getElementById(`btn-${name}`);
+            const tag = document.getElementById(`tag-${name}`);
+            const dur = document.getElementById(`dur-${name}`);
+            
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+            tag.className = 'tag';
+            tag.textContent = 'RUNNING';
+            
+            try {
+                const result = await window.DSResearch.run(name);
+                
+                tag.className = `tag ${result.status}`;
+                tag.textContent = result.status;
+                
+                if (result.duration_ms !== undefined) {
+                    dur.textContent = `${result.duration_ms}ms`;
+                }
+                
+                if (result.median_ms !== undefined) {
+                    dur.innerHTML += `<br><span style="color:var(--text-secondary); font-size: 0.7rem">~${result.median_ms}ms avg</span>`;
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run';
+                isRunning = false;
+            }
+        }
+
+        async function runAllPayloads() {
+            if (isRunning) return;
+            isRunning = true;
+            
+            const btnAll = document.getElementById('btnRunAll');
+            btnAll.textContent = 'Running All...';
+            btnAll.disabled = true;
+            
+            const list = window.DSResearch.list();
+            
+            for (const p of list) {
+                const val = window.DSResearch.validate(p.name);
+                if (val.valid) {
+                    // Unlock the UI thread slightly between runs
+                    await new Promise(r => setTimeout(r, 100));
+                    
+                    // Directly update UI state to bypass the isRunning check in runSingle
+                    const btn = document.getElementById(`btn-${p.name}`);
+                    const tag = document.getElementById(`tag-${p.name}`);
+                    if (btn) btn.textContent = 'Running...';
+                    if (tag) { tag.className = 'tag'; tag.textContent = 'RUNNING'; }
+                    
+                    const result = await window.DSResearch.run(p.name);
+                    
+                    if (tag) {
+                        tag.className = `tag ${result.status}`;
+                        tag.textContent = result.status;
+                    }
+                    if (btn) btn.textContent = 'Run';
+                    
+                    const dur = document.getElementById(`dur-${p.name}`);
+                    if (dur && result.duration_ms !== undefined) {
+                        dur.textContent = `${result.duration_ms}ms`;
+                        if (result.median_ms !== undefined) {
+                            dur.innerHTML += `<br><span style="color:var(--text-secondary); font-size: 0.7rem">~${result.median_ms}ms avg</span>`;
+                        }
+                    }
+                }
+            }
+            
+            btnAll.textContent = '▶ Run All';
+            btnAll.disabled = false;
+            isRunning = false;
+            window.addLog("[DSR:INFO] runAll complete.");
+        }
+
+        function exportJSON() {
+            if (!window.DSResearch) return;
+            const json = window.DSResearch.exportJSON();
+            downloadBlob(json, 'application/json', `dsresearch-${window.DSResearch.firmware}-${Date.now()}.json`);
+        }
+
+        function exportCSV() {
+            if (!window.DSResearch) return;
+            const csv = window.DSResearch.exportCSV();
+            downloadBlob(csv, 'text/csv', `dsresearch-${window.DSResearch.firmware}-${Date.now()}.csv`);
+        }
+
+        function downloadBlob(content, type, filename) {
+            const blob = new Blob([content], { type: type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src + "?_=" + Date.now();
+                s.onload = resolve;
+                s.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.head.appendChild(s);
+            });
+        }
+
+        // Start
+        window.addEventListener('DOMContentLoaded', initDashboard);
+
+    </script>
+</body>
+</html>
