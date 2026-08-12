@@ -367,6 +367,21 @@
         <div id="payloadResult"></div>
     </div>
 
+    <div class="card" id="mediaCard">
+        <div class="sec-title">🎬 VIDEO TEST — libSceAvPlayer MP4 (اختبار الفيديو)</div>
+        <div class="inprow">
+            <a class="btn" style="flex:1;text-align:center;text-decoration:none" href="video-test.html">▶ OPEN VIDEO TEST PAGE</a>
+        </div>
+        <div dir="rtl" style="margin-top:12px;font-size:14px;line-height:1.9;color:var(--text-muted)">
+            <b style="color:var(--text-main)">طريقة الاختبار:</b><br>
+            ١) افتح صفحة الاختبار بالزر أعلاه — تحتوي ٤ مقاطع فيديو خبيثة (stts / stco / stss / stsz) + مقطع سليم للتحكم.<br>
+            ٢) اضغط زر <b>base.mp4</b> أولًا — يجب أن يعمل الفيديو طبيعيًا (التأكد أن البث يصل).<br>
+            ٣) ثم اضغط <b>stts</b> ثم <b>stco</b> (الأقوى — حجم التخصيص = 0) — <b>النتيجة المتوقعة:</b> انهيار المتصفح/عملية الوسائط خلال ~ثانية واحدة، أو رسالة «حدث خطأ».<br>
+            ٤) إن لم ينهار: الملف رُفض مبكرًا — جرّب المتغيرات الباقية، أو اختبار USB عبر Media Player (الملفات في مجلد media).<br>
+            <b style="color:var(--amber)">الخطأ</b> بدون انهيار = رفض مبكر (ليس فشل الثغرة). الانهيار = تأكيد ميداني لـ heap overflow في demuxer النظام.
+        </div>
+    </div>
+
     <details class="advanced">
         <summary>ADVANCED — payload editor · log · dev tools</summary>
         <textarea class="ta" id="payloadCode" spellcheck="false" placeholder="custom JS payload — runs post-RCE (window.ps5kern / rwView / scratchWords / kernelBase …)"></textarea>
