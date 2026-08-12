@@ -362,6 +362,7 @@
             <button class="btn" id="btnRemotePc" data-icon="📡"><span class="title">PC REMOTE</span><span class="d">optional REPL — needs PC :8080</span></button>
             <button class="btn" id="btnHello" data-icon="👋"><span class="title">HELLO WORLD</span><span class="d">self-test payload</span></button>
             <button class="btn" id="btnInfo" data-icon="📊"><span class="title">DEEPSLOP INFO</span><span class="d">bases + scan + memory report</span></button>
+            <button class="btn" id="btnAvPlayer" data-icon="🎬"><span class="title">AVPLAYER RCE</span><span class="d">direct in-process demux probe</span></button>
             <button class="btn danger" id="btnCommit" data-icon="💥"><span class="title">COMMIT RCE</span><span class="d">notification + chain</span></button>
         </div>
         <div id="payloadResult"></div>
@@ -796,6 +797,7 @@ $("btnSysinfo").addEventListener("click", () => runPayloadFile("sysinfo", "btnSy
 $("btnFsprobe").addEventListener("click", () => runPayloadFile("fsprobe", "btnFsprobe"));
 $("btnHello").addEventListener("click", () => runPayloadFile("helloworld", "btnHello"));
 $("btnInfo").addEventListener("click", () => runPayloadFile("deepslop_info", "btnInfo"));
+$("btnAvPlayer").addEventListener("click", () => runPayloadFile("avplayer_test", "btnAvPlayer"));
 $("btnNotify").addEventListener("click", () => {
     if (!payloadReady()) return;
     const t = $("notifyText").value.trim() || "DEEPSLOP on-device payload";
