@@ -1,6 +1,11 @@
 (async () => {
-    // deepslop_info.js — rapport complet de l'état deepslop (bases + scan offsets)
-    await log("deepslop_info: generating report");
+    // deepslop_info.js — complete status report (bases + scan offsets + memory)
+    const log = (msg) => {
+        if (window.addLog) window.addLog(msg);
+        console.log(msg);
+    };
+
+    log("[*] deepslop_info: generating report...");
 
     const report = {
         info: (typeof window.deepslopInfo !== "undefined") ? window.deepslopInfo : null,
@@ -8,24 +13,34 @@
         mem:  (typeof window.deepslopMemEstimate === "function") ? window.deepslopMemEstimate() : null,
     };
 
-    await log("deepslop_info: webkitBase=" + (report.info ? "0x" + report.info.webkitBase.toString(16) : "?")
-        + " kernelBase=" + (report.info ? "0x" + report.info.kernelBase.toString(16) : "?"));
+    const toHex = (n) => (n == null ? "—" : "0x" + BigInt(n).toString(16));
+
+    if (report.info) {
+        log(`[INFO] webkitBase=${toHex(report.info.webkitBase)} kernelBase=${toHex(report.info.kernelBase)}`);
+    }
 
     if (report.scan) {
-        await log("deepslop_info: hc=0x" + report.scan.hc.toString(16)
-            + " gd=0x" + report.scan.gd.toString(16)
-            + " nt=0x" + report.scan.nt.toString(16));
+        log(`[INFO] scan: hc=${toHex(report.scan.hc)} gd=${toHex(report.scan.gd)} nt=${toHex(report.scan.nt)}`);
         for (const k of ["gps", "cls", "ers"]) {
             const f = (report.scan.found || {})[k] || [];
-            await log("deepslop_info: " + k + "=" + (f.length ? f.map(x => "0x" + x.toString(16)).join(",") : "none"));
+            log(`[INFO] ${k}=${f.length ? f.map(toHex).join(",") : "none"}`);
         }
-        await log("deepslop_info: trampoline=" + ((report.scan.verified && report.scan.verified.trampolineBytes) ?? "none"));
+        log(`[INFO] trampoline=${(report.scan.verified && report.scan.verified.trampolineBytes) ?? "none"}`);
     }
 
     if (report.mem) {
-        await log("deepslop_info: memTotal=" + Math.round(report.mem.totalBytes / 1048576) + "MB");
+        log(`[INFO] memTotal=${Math.round(report.mem.totalBytes / 1048576)}MB`);
     }
 
-    send_notification("DEEPSLOP info report ready");
-    return "deepslop_info OK";
-})()
+    try {
+        if (window.ps5kern && typeof window.ps5kern.notify === "function") {
+            window.ps5kern.notify("DEEPSLOP: Info report generated");
+        } else if (typeof window.send_notification === "function") {
+            window.send_notification("DEEPSLOP: Info report generated");
+        }
+    } catch (e) {}
+
+    const res = "deepslop_info OK";
+    log("[OK] " + res);
+    return res;
+})();
