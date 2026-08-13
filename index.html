@@ -641,7 +641,7 @@ function enableButtons(){
 function buildParams(extra){
     const q = new URLSearchParams();
     q.set("go", "1");
-    q.set("fw", fw || "11.60");
+    q.set("fw", fw || "13.60");
     q.set("hc", entry.hc.join(","));
     q.set("gd", entry.gd);
     q.set("notify", entry.nt);
@@ -992,7 +992,7 @@ function autoRunNow(){
     addLog("[INFO] ?go=1 detected — auto-arming");
     const q = new URLSearchParams();
     q.set("go","1");
-    q.set("fw", fw || "11.60");
+    q.set("fw", fw || "13.60");
     if (entry){
         q.set("hc", entry.hc.join(","));
         q.set("gd", entry.gd); q.set("notify", entry.nt);
