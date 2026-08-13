@@ -13,5 +13,10 @@
     "direction": "FW 12.70 SPRX Linkage Mapping",
     "status": "completed",
     "notes": "Extracted import/export dependencies across 22 web-connected libraries from ps5_sprx_db."
+  },
+  {
+    "direction": "Deep Vulnerability & Attack Surface Research across Web-Connected SPRX Libraries",
+    "status": "completed",
+    "notes": "Audited libSceXml, libSceAvPlayer, libSceSysmodule, libSceHttp2, and IPMI daemon IPC boundaries."
   }
 ]
