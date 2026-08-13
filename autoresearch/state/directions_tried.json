@@ -1,0 +1,17 @@
+[
+  {
+    "direction": "Monolithic vs Modular Architecture Audit",
+    "status": "completed",
+    "notes": "Verified both modular ds-*.js pipeline and standalone exploit.js; confirmed parameter parity."
+  },
+  {
+    "direction": "Synthetic Libkernel Syscall Battery Testing",
+    "status": "completed",
+    "notes": "Validated scan-test.js across all 23 target firmwares with negative decoy rejection."
+  },
+  {
+    "direction": "FW 12.70 SPRX Linkage Mapping",
+    "status": "completed",
+    "notes": "Extracted import/export dependencies across 22 web-connected libraries from ps5_sprx_db."
+  }
+]

