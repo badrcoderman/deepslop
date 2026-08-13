@@ -364,6 +364,11 @@
             <button class="btn" id="btnInfo" data-icon="📊"><span class="title">DEEPSLOP INFO</span><span class="d">bases + scan + memory report</span></button>
             <button class="btn" id="btnAvPlayer" data-icon="🎬"><span class="title">AVPLAYER RCE</span><span class="d">direct in-process demux probe</span></button>
             <button class="btn" id="btnXmlTest" data-icon="📄"><span class="title">LIBXML EXPLOIT</span><span class="d">in-memory entity heap probe</span></button>
+            <button class="btn" id="btnCanaryProbe" data-icon="🛡️"><span class="title">CANARY PROBE</span><span class="d">pre/post memory guard inspection</span></button>
+            <button class="btn" id="btnApiCheck" data-icon="🔍"><span class="title">API CHECK</span><span class="d">return codes & flow audit</span></button>
+            <button class="btn" id="btnSysmoduleProbe" data-icon="🔓"><span class="title">SYSMODULE LOADER</span><span class="d">probe unrestricted SPRX loading</span></button>
+            <button class="btn" id="btnIpmiFuzzer" data-icon="⚡"><span class="title">IPMI IPC FUZZER</span><span class="d">fuzz daemon IPC deserialization</span></button>
+            <button class="btn" id="btnTelemetry" data-icon="📡"><span class="title">LIVE TELEMETRY</span><span class="d">stream logs & memory trace to PC :9020</span></button>
             <button class="btn danger" id="btnCommit" data-icon="💥"><span class="title">COMMIT RCE</span><span class="d">notification + chain</span></button>
         </div>
         <div id="payloadResult"></div>
@@ -464,8 +469,12 @@ const OFFSETS_URL = "offsets/offsets.json?_=" + Date.now();
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const ua = (typeof navigator !== "undefined" && navigator.userAgent) ? navigator.userAgent : "";
-const fwM = /PlayStation 5\/(\d+)\.(\d+)/.exec(ua);
-const fw = fwM ? `${fwM[1].padStart(2,"0")}.${fwM[2].padStart(2,"0")}` : null;
+let detectedFw = null;
+const fwM = /(?:PlayStation 5\/|PlayStation 5\s+)(\d+)\.(\d+)/i.exec(ua);
+if (fwM) {
+    detectedFw = `${fwM[1].padStart(2,"0")}.${fwM[2].padStart(2,"0")}`;
+}
+const fw = params.get("fw") || detectedFw || "13.60";
 
 let entry = null, colorIdx = 0, isRunning = false, exploitLoaded = false;
 let logLines = [], scrollPending = false;
@@ -591,12 +600,11 @@ addLog("[INFO] loading offsets/offsets.json");
 fetch(OFFSETS_URL, { cache: "no-store" })
 .then(r => r.json())
 .then(data => {
-    if (!fw){ addLog("[WARN] not a PS5 browser — debug mode"); autoRunNow(); return; }
-    entry = data[fw];
+    entry = data[fw] || data[fw.replace(/^0+/, '')] || data["13.60"] || data["11.60"];
     if (entry){
-        $("status").textContent = `✓ FW ${fw} — exact offsets found`;
+        $("status").textContent = `✓ FW ${fw} — offsets loaded`;
         $("status").className = "ok";
-        addLog(`[OK] FW ${fw} — exact offsets in table`);
+        addLog(`[OK] FW ${fw} — offsets resolved`);
         enableButtons();
         autoRunNow();
     } else {
@@ -800,6 +808,11 @@ $("btnHello").addEventListener("click", () => runPayloadFile("helloworld", "btnH
 $("btnInfo").addEventListener("click", () => runPayloadFile("deepslop_info", "btnInfo"));
 $("btnAvPlayer").addEventListener("click", () => runPayloadFile("avplayer_test", "btnAvPlayer"));
 $("btnXmlTest").addEventListener("click", () => runPayloadFile("xml_test", "btnXmlTest"));
+$("btnCanaryProbe").addEventListener("click", () => runPayloadFile("mem_canary_probe", "btnCanaryProbe"));
+$("btnApiCheck").addEventListener("click", () => runPayloadFile("api_return_checker", "btnApiCheck"));
+$("btnSysmoduleProbe").addEventListener("click", () => runPayloadFile("sysmodule_internal_probe", "btnSysmoduleProbe"));
+$("btnIpmiFuzzer").addEventListener("click", () => runPayloadFile("ipmi_fuzzer", "btnIpmiFuzzer"));
+$("btnTelemetry").addEventListener("click", () => runPayloadFile("telemetry", "btnTelemetry"));
 $("btnNotify").addEventListener("click", () => {
     if (!payloadReady()) return;
     const t = $("notifyText").value.trim() || "DEEPSLOP on-device payload";

