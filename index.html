@@ -3,1016 +3,668 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DEEPSLOP — PS5 WebKit RCE kit</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<title>DEEPSLOP — PS5 WebKit Research Suite</title>
 <style>
   :root {
-    --bg-base: #0a0f1a;
-    --card-bg: rgba(18, 24, 38, 0.7);
+    --bg: #080c14;
+    --card-bg: rgba(15, 23, 42, 0.75);
     --card-border: rgba(255, 255, 255, 0.08);
-    --purple-1: #7c3aed;
-    --purple-2: #a855f7;
+    --card-hover: rgba(30, 41, 59, 0.8);
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.25);
+    --accent: #8b5cf6;
     --emerald: #10b981;
-    --rose: #f43f5e;
+    --emerald-glow: rgba(16, 185, 129, 0.2);
     --amber: #f59e0b;
-    --text-main: #d8dee9;
-    --text-muted: #7c8795;
-    --blue: #3b82f6;
+    --rose: #f43f5e;
+    --cyan: #06b6d4;
   }
 
-  html, body {
-    margin: 0; padding: 0; min-height: 100%;
-    background-color: var(--bg-base);
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    background-color: var(--bg);
     background-image: 
-      radial-gradient(circle at 20% 30%, rgba(124, 58, 237, 0.12), transparent 40%),
-      radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.08), transparent 40%),
-      radial-gradient(circle at 50% 50%, rgba(244, 63, 94, 0.05), transparent 50%);
-    background-size: 200% 200%;
-    animation: mesh 25s ease-in-out infinite alternate;
-    color: var(--text-main);
-    font: 16px/1.5 "Inter", system-ui, sans-serif;
+      radial-gradient(ellipse at 50% 0%, rgba(59, 130, 246, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+    color: var(--text);
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 40px;
+    display: flex;
+    justify-content: center;
+    -webkit-font-smoothing: antialiased;
   }
 
-  @keyframes mesh {
-    0% { background-position: 0% 0%; }
-    50% { background-position: 100% 100%; }
-    100% { background-position: 0% 100%; }
+  #wrap {
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
-  body { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; padding: 20px 14px 40px; }
-  #wrap { width: 100%; max-width: 760px; display: flex; flex-direction: column; gap: 20px; }
-
-  /* ── header ── */
-  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-  #logo { font-weight: 800; font-size: 24px; letter-spacing: 1px;
-    background: linear-gradient(90deg, var(--purple-1), var(--purple-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  #logo small { color: var(--text-muted); font-weight: 400; letter-spacing: 0; font-size: 14px; margin-left: 8px; }
-  #spacer { flex: 1 }
-  .chip { font-family: "JetBrains Mono", monospace; font-size: 14px; padding: 4px 12px;
-    border-radius: 999px; border: 1px solid rgba(255,255,255,0.1); color: #9fb1c3; background: rgba(0,0,0,0.2); backdrop-filter: blur(4px); }
-  .chip.on { color: var(--emerald); border-color: rgba(16, 185, 129, 0.4); }
-  .chip.warn { color: var(--amber); border-color: rgba(245, 158, 11, 0.4); }
-  #version { color: #5a6474; font-size: 13px; font-weight: 700; }
-
-  /* ── cards (glassmorphism) ── */
-  .card { 
-    background: var(--card-bg); 
-    backdrop-filter: blur(12px); 
-    border: 1px solid var(--card-border); 
-    border-radius: 20px; 
-    padding: 20px 24px; 
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  }
-
-  /* ── status chip ── */
-  #status-wrap { text-align: center; margin-bottom: 24px; }
-  #status {
-    padding: 8px 20px;
-    border-radius: 999px;
-    display: inline-block;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 16px;
-    font-weight: 700;
-    color: #fff;
-    transition: all 0.3s ease;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  #status.run {
-    animation: pulse 1.5s infinite;
-    background: rgba(245, 158, 11, 0.15);
-    border-color: rgba(245, 158, 11, 0.5);
-    color: #fcd34d;
-  }
-  #status.ok {
-    animation: green-glow 0.8s ease-out forwards;
-    background: rgba(16, 185, 129, 0.15);
-    border-color: rgba(16, 185, 129, 0.5);
-    color: #6ee7b7;
-  }
-  #status.bad {
-    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-    background: rgba(244, 63, 94, 0.15);
-    border-color: rgba(244, 63, 94, 0.5);
-    color: #fda4af;
-  }
-
-  @keyframes pulse {
-    0% { opacity: 0.7; }
-    50% { opacity: 1; box-shadow: 0 0 12px rgba(245,158,11,0.3); }
-    100% { opacity: 0.7; }
-  }
-  @keyframes green-glow {
-    0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
-    100% { box-shadow: 0 0 24px 8px rgba(16,185,129,0); }
-  }
-  @keyframes shake {
-    10%, 90% { transform: translateX(-4px); }
-    20%, 80% { transform: translateX(4px); }
-    30%, 50%, 70% { transform: translateX(-4px); }
-    40%, 60% { transform: translateX(4px); }
-  }
-
-  /* ── timeline ── */
-  .timeline {
+  /* ── Header ── */
+  header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 20px 0 30px;
-    position: relative;
-    padding: 0 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--card-border);
   }
-  .phase {
+
+  .brand {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    z-index: 2;
-    width: 60px;
+    gap: 10px;
   }
-  .phase .circle {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #1b2430;
-    border: 2px solid #343c49;
-    transition: all 0.4s ease;
+
+  .brand-logo {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #60a5fa, #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
-  .phase span {
-    font-family: "JetBrains Mono", monospace;
+
+  .brand-ver {
     font-size: 11px;
-    color: var(--text-muted);
     font-weight: 700;
-    transition: color 0.4s ease;
-    text-align: center;
-  }
-  .timeline .line {
-    flex: 1;
-    height: 2px;
-    background: #232c3d;
-    margin: 0 -20px;
-    position: relative;
-    top: -10px;
-    z-index: 1;
-    transition: background 0.4s ease;
-  }
-  
-  .phase.active .circle {
-    border-color: var(--purple-2);
-    background: var(--purple-1);
-    box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
-    animation: pulse-ring 2s infinite;
-  }
-  .phase.active span { color: var(--purple-2); }
-  
-  .phase.complete .circle {
-    border-color: var(--emerald);
-    background: var(--emerald);
-  }
-  .phase.complete span { color: var(--emerald); }
-  .phase.complete + .line { background: var(--emerald); }
-
-  @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
   }
 
-  /* ── buttons ── */
-  .btn { font-family: "Inter", system-ui, sans-serif; font-size: 16px; font-weight: 800; letter-spacing: .5px;
-    padding: 15px 22px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer;
-    background: rgba(255,255,255,0.03); color: var(--text-main);
-    transition: transform .15s cubic-bezier(0.4,0,0.2,1), box-shadow .2s ease, background .2s ease, opacity .2s ease;
-    backdrop-filter: blur(8px); }
-  .btn:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.3); background: rgba(255,255,255,0.06); }
-  .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
-  .btn:focus { outline: none; border-color: var(--purple-2); box-shadow: 0 0 0 3px rgba(167,139,250,.25); }
-  .btn.run { background: linear-gradient(135deg, var(--purple-1), var(--purple-2)); border: none; color: #fff; font-size: 18px;
-    box-shadow: 0 10px 28px rgba(168,85,247,.3); padding: 18px 24px; text-transform: uppercase; }
-  .btn.run:hover:not(:disabled) { box-shadow: 0 12px 32px rgba(168,85,247,.45); }
-  .btn.probe { background: linear-gradient(135deg, #0ea5e9, #38bdf8); border: none; color: #04121f; }
-  .btn.danger { background: linear-gradient(135deg, var(--rose), #fb7185); border: none; color: #fff; }
-  .btn.ghost { border-color: transparent; color: var(--text-muted); background: transparent; box-shadow: none; }
-  .btn.ghost:hover:not(:disabled) { background: rgba(255,255,255,0.05); }
-  
-  .btn.spin::after { content: ''; display: inline-block; width: 12px; height: 12px; margin-left: 10px;
-    border: 2px solid currentColor; border-radius: 50%; border-top-color: transparent;
-    animation: spin .7s linear infinite; vertical-align: -1px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .btn.ok { border-color: rgba(16,219,129,.5); box-shadow: 0 0 14px rgba(16,185,129,.2) !important; background: rgba(16,185,129,0.1); }
-  .btn.fail { border-color: rgba(244,63,94,.5); box-shadow: 0 0 14px rgba(244,63,94,.2) !important; background: rgba(244,63,94,0.1); }
+  .badge-fw {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+  }
 
-  .row { display: flex; gap: 12px; flex-wrap: wrap; }
-  .row .btn { flex: 1; min-width: 140px; }
-
-  /* ── payload grid ── */
-  #grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  @media (max-width: 900px) { #grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 520px) { #grid { grid-template-columns: 1fr; } }
-  
-  #grid .btn { 
-    text-align: left; 
-    font-size: 15px; 
-    min-height: 64px; 
-    position: relative; 
-    overflow: hidden; 
-    z-index: 1; 
+  /* ── Status Banner ── */
+  #status-banner {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
     padding: 14px 18px;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 10px var(--amber);
+  }
+
+  #status-banner.ok .status-dot {
+    background: var(--emerald);
+    box-shadow: 0 0 12px var(--emerald);
+  }
+  #status-banner.ok { border-color: rgba(16, 185, 129, 0.3); }
+
+  #status-banner.bad .status-dot {
+    background: var(--rose);
+    box-shadow: 0 0 12px var(--rose);
+  }
+  #status-banner.bad { border-color: rgba(244, 63, 94, 0.3); }
+
+  /* ── Card Containers ── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(12px);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.75px;
+    color: var(--text-muted);
+  }
+
+  /* ── Buttons & Actions ── */
+  .btn-group-hero {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 10px;
+  }
+
+  .btn {
+    appearance: none;
+    border: 1px solid var(--card-border);
+    background: rgba(30, 41, 59, 0.6);
+    color: var(--text);
+    padding: 11px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-  }
-  #grid .btn span.title { display: block; font-weight: 800; }
-  #grid .btn span.d { display: block; font-size: 12px; font-weight: 400; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }
-  
-  #grid .btn::before {
-    content: attr(data-icon);
-    position: absolute;
-    right: -5px;
-    bottom: -15px;
-    font-size: 70px;
-    opacity: 0.08;
-    z-index: -1;
-    transform: rotate(-15deg);
-    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
-  }
-  #grid .btn:hover::before {
-    transform: rotate(0) scale(1.15);
-    opacity: 0.15;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .sec-title { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin: 0 0 12px; }
-  #payloadResult { font-family: "JetBrains Mono", monospace; font-size: 14px; color: var(--purple-2);
-    min-height: 1.4em; margin-top: 16px; word-break: break-all; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px dashed rgba(168,85,247,0.3); }
-  #payloadResult:empty { display: none; }
+  .btn:hover:not(:disabled) {
+    background: var(--card-hover);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    border-color: rgba(96, 165, 250, 0.4);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 4px 14px var(--primary-glow);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1d4ed8, #6d28d9);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  }
+
+  /* ── Pinned Payloads Grid ── */
+  .grid-payloads {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .payload-btn {
+    background: rgba(18, 26, 43, 0.8);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .payload-btn:hover {
+    background: rgba(30, 42, 68, 0.9);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .payload-btn.green:hover { border-color: var(--emerald); box-shadow: 0 4px 16px var(--emerald-glow); }
+  .payload-btn.purple:hover { border-color: var(--accent); box-shadow: 0 4px 16px rgba(139, 92, 246, 0.2); }
+  .payload-btn.amber:hover { border-color: var(--amber); box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2); }
+  .payload-btn.cyan:hover { border-color: var(--cyan); box-shadow: 0 4px 16px rgba(6, 182, 212, 0.2); }
+
+  .payload-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .payload-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.3;
+  }
+
+  /* ── Hex Inspector Panel ── */
+  #hexCard { display: none; }
   
-  .inp { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
-    color: var(--text-main); font-family: "JetBrains Mono", monospace; font-size: 15px; padding: 12px 16px; outline: none; transition: border 0.2s; }
-  .inp:focus { border-color: var(--purple-2); }
-  .inprow { display: flex; gap: 10px; align-items: stretch; }
-  .inprow .inp { flex: 1; }
+  .hex-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
 
-  /* ── advanced ── */
-  details.advanced { border: 1px solid var(--card-border); border-radius: 20px; padding: 20px; background: var(--card-bg); backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-  details.advanced summary { cursor: pointer; color: var(--text-muted); font-size: 14px; font-weight: 700; letter-spacing: 1px; user-select: none; outline: none; }
-  .ta { width: 100%; box-sizing: border-box; height: 120px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px; color: var(--text-main); font-family: "JetBrains Mono", monospace; font-size: 13px;
-    padding: 12px; resize: vertical; outline: none; margin-top: 16px; }
-  .ta:focus { border-color: var(--purple-2); }
+  .hex-input {
+    flex: 1;
+    background: #060911;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 12px;
+    outline: none;
+  }
 
-  .flex-stats { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
-  .stats-col { flex: 1; min-width: 200px; }
+  .hex-input:focus {
+    border-color: var(--primary);
+  }
 
-  .kv { font-family: "JetBrains Mono", monospace; font-size: 13px; display: grid;
-    grid-template-columns: auto 1fr; gap: 4px 12px; margin-bottom: 16px; }
-  .kv b { color: var(--text-muted); font-weight: 400; }
-  .kv span { color: var(--text-main); word-break: break-all; }
-  .kv .good { color: var(--emerald); } .kv .bad { color: var(--rose); } .kv .warn { color: var(--amber); }
+  .hex-display {
+    background: #05070d;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 12px;
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    color: #38bdf8;
+    overflow-x: auto;
+    max-height: 250px;
+    white-space: pre;
+  }
 
-  /* ── donut chart ── */
-  .donut-container { position: relative; width: 120px; height: 120px; margin: 0 auto; }
-  .donut-container svg { transform: rotate(-90deg); border-radius: 50%; }
-  .donut-segment { transition: stroke-dasharray 0.4s ease, stroke-dashoffset 0.4s ease; stroke-linecap: round; }
-  .donut-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-    font-family: "JetBrains Mono", monospace; font-size: 18px; font-weight: 700; color: var(--text-main); }
-  .donut-legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; font-size: 11px; font-family: "JetBrains Mono", monospace; }
-  .dl-item { display: flex; align-items: center; gap: 4px; color: var(--text-muted); }
-  .dl-dot { width: 8px; height: 8px; border-radius: 50%; }
+  /* ── Log Console ── */
+  .log-box {
+    background: #05070d;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    max-height: 150px;
+    overflow-y: auto;
+    word-break: break-all;
+  }
 
-  /* ── log panel ── */
-  .log-wrap { margin-top: 20px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.3); }
-  .log-filter { display: flex; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.05); }
-  .filter-btn { flex: 1; background: transparent; border: none; color: var(--text-muted); font-family: "Inter", sans-serif; font-size: 12px; font-weight: 700; padding: 8px; cursor: pointer; transition: all 0.2s; }
-  .filter-btn:hover { color: var(--text-main); background: rgba(255,255,255,0.05); }
-  .filter-btn.active { color: var(--purple-2); background: rgba(168,85,247,0.1); border-bottom: 2px solid var(--purple-2); }
-  
-  #log { max-height: 280px; overflow-y: auto; padding: 12px; font-family: "JetBrains Mono", monospace; font-size: 13px; line-height: 1.7; }
-  #log::-webkit-scrollbar { width: 6px; }
-  #log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-  .l { display: flex; gap: 10px; word-break: break-all; white-space: pre-wrap; padding: 2px 0; }
-  .t { color: #4b5563; font-size: 12px; flex-shrink: 0; min-width: 65px; }
-  .lc-0{color:#38bdf8}.lc-1{color:#34d399}.lc-2{color:#fbbf24}.lc-3{color:#fb923c}
-  .lc-4{color:#f472b6}.lc-5{color:#60a5fa}.lc-6{color:#a3e635}.lc-7{color:#c084fc}
-  .lc-8{color:#4ade80}.lc-9{color:#fda4af}
-  
-  .severity-ok { color: var(--emerald) !important; font-weight: 700; }
-  .severity-err { color: var(--rose) !important; font-weight: 700; }
-  .severity-warn { color: var(--amber) !important; }
-  .severity-info { color: var(--blue) !important; }
-  
-  .empty { color: #4b5563; text-align: center; padding: 20px 0; font-size: 14px; font-family: "Inter", sans-serif; }
-  
-  /* Filter logic via CSS */
-  #log[data-view="err"] .l:not([data-severity="err"]) { display: none; }
-  #log[data-view="ok"] .l:not([data-severity="ok"]) { display: none; }
-  #log[data-view="warn"] .l:not([data-severity="warn"]) { display: none; }
+  .log-entry { margin-bottom: 2px; }
+  .log-ok { color: var(--emerald); font-weight: 600; }
+  .log-err { color: var(--rose); font-weight: 600; }
+  .log-warn { color: var(--amber); }
 
-  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-muted); cursor: pointer; font-weight: 700; }
-  .toggle input { accent-color: var(--purple-2); width: 16px; height: 16px; cursor: pointer; }
+  @media (max-width: 520px) {
+    .btn-group-hero, .grid-payloads { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
+
 <div id="wrap">
-    <header>
-        <span id="logo">DEEPSLOP <small>PS5 WebKit RCE</small></span>
-        <span id="spacer"></span>
-        <span class="chip" id="fw">FW: detecting…</span>
-        <span class="chip" id="chipMode">mode: —</span>
-        <span id="version">v1.2.0</span>
-    </header>
-
-    <div class="card">
-        <div id="status-wrap">
-            <div id="status">Loading offsets…</div>
-        </div>
-        
-        <div class="timeline" id="timeline">
-            <div class="phase active" id="phase-0"><div class="circle"></div><span>BOOT</span></div>
-            <div class="line"></div>
-            <div class="phase" id="phase-1"><div class="circle"></div><span>ADDROF</span></div>
-            <div class="line"></div>
-            <div class="phase" id="phase-2"><div class="circle"></div><span>GROOM</span></div>
-            <div class="line"></div>
-            <div class="phase" id="phase-3"><div class="circle"></div><span>R/W</span></div>
-            <div class="line"></div>
-            <div class="phase" id="phase-4"><div class="circle"></div><span>RESOLVE</span></div>
-            <div class="line"></div>
-            <div class="phase" id="phase-5"><div class="circle"></div><span>READY</span></div>
-        </div>
-
-        <div class="row" style="margin-top:14px">
-            <button class="btn run" id="btnRun" disabled>▶ RUN</button>
-            <button class="btn probe" id="btnProbe" disabled>◎ PROBE (safe verify)</button>
-        </div>
+  <!-- Top Navigation / Brand Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">DEEPSLOP</div>
+      <div class="brand-ver">Standalone 13.60</div>
     </div>
+    <div class="badge-fw" id="fwBadge">FW --.--</div>
+  </header>
 
-    <div class="card" id="payCard" style="display:none">
-        <div class="sec-title">📦 Payloads — on-device, no PC</div>
-        <div class="inprow">
-            <input class="inp" id="notifyText" placeholder="notification text…">
-            <button class="btn" id="btnNotify" style="flex:0 0 auto">🔔 NOTIFY</button>
-        </div>
-        <div id="grid" style="margin-top:16px">
-            <button class="btn" id="btnSysinfo" data-icon="ℹ️"><span class="title">SYSINFO</span><span class="d">pid / tid / pipe — real kernel data</span></button>
-            <button class="btn" id="btnFsprobe" data-icon="🗑️"><span class="title">FS PROBE</span><span class="d">delete appcache DBs via unlink()</span></button>
-            <button class="btn" id="btnReport" data-icon="📋"><span class="title">REPORT</span><span class="d">bases + scan + memory</span></button>
-            <button class="btn" id="btnSyscall" data-icon="🛰"><span class="title">TEST SYSCALLS</span><span class="d">clean battery — no crash</span></button>
-            <button class="btn" id="btnRemotePc" data-icon="📡"><span class="title">PC REMOTE</span><span class="d">optional REPL — needs PC :8080</span></button>
-            <button class="btn" id="btnHello" data-icon="👋"><span class="title">HELLO WORLD</span><span class="d">self-test payload</span></button>
-            <button class="btn" id="btnInfo" data-icon="📊"><span class="title">DEEPSLOP INFO</span><span class="d">bases + scan + memory report</span></button>
-            <button class="btn" id="btnAvPlayer" data-icon="🎬"><span class="title">AVPLAYER RCE</span><span class="d">direct in-process demux probe</span></button>
-            <button class="btn" id="btnXmlTest" data-icon="📄"><span class="title">LIBXML EXPLOIT</span><span class="d">in-memory entity heap probe</span></button>
-            <button class="btn" id="btnCanaryProbe" data-icon="🛡️"><span class="title">CANARY PROBE</span><span class="d">pre/post memory guard inspection</span></button>
-            <button class="btn" id="btnApiCheck" data-icon="🔍"><span class="title">API CHECK</span><span class="d">return codes & flow audit</span></button>
-            <button class="btn" id="btnSysmoduleProbe" data-icon="🔓"><span class="title">SYSMODULE LOADER</span><span class="d">probe unrestricted SPRX loading</span></button>
-            <button class="btn" id="btnIpmiFuzzer" data-icon="⚡"><span class="title">IPMI IPC FUZZER</span><span class="d">fuzz daemon IPC deserialization</span></button>
-            <button class="btn" id="btnTelemetry" data-icon="📡"><span class="title">LIVE TELEMETRY</span><span class="d">stream logs & memory trace to PC :9020</span></button>
-            <button class="btn danger" id="btnCommit" data-icon="💥"><span class="title">COMMIT RCE</span><span class="d">notification + chain</span></button>
-        </div>
-        <div id="payloadResult"></div>
+  <!-- Live Status Hero Banner -->
+  <div id="status-banner">
+    <div class="status-indicator">
+      <div class="status-dot"></div>
+      <span id="status-text">Resolving firmware offsets…</span>
     </div>
+    <span id="sub-status" style="font-size:12px;color:var(--text-muted);font-family:monospace">Standby</span>
+  </div>
 
-    <div class="card" id="mediaCard">
-        <div class="sec-title">🎬 VIDEO TEST — libSceAvPlayer MP4 (اختبار الفيديو)</div>
-        <div class="inprow">
-            <a class="btn" style="flex:1;text-align:center;text-decoration:none" href="video-test.html">▶ OPEN VIDEO TEST PAGE</a>
-        </div>
-        <div dir="rtl" style="margin-top:12px;font-size:14px;line-height:1.9;color:var(--text-muted)">
-            <b style="color:var(--text-main)">طريقة الاختبار:</b><br>
-            ١) افتح صفحة الاختبار بالزر أعلاه — تحتوي ٤ مقاطع فيديو خبيثة (stts / stco / stss / stsz) + مقطع سليم للتحكم.<br>
-            ٢) اضغط زر <b>base.mp4</b> أولًا — يجب أن يعمل الفيديو طبيعيًا (التأكد أن البث يصل).<br>
-            ٣) ثم اضغط <b>stts</b> ثم <b>stco</b> (الأقوى — حجم التخصيص = 0) — <b>النتيجة المتوقعة:</b> انهيار المتصفح/عملية الوسائط خلال ~ثانية واحدة، أو رسالة «حدث خطأ».<br>
-            ٤) إن لم ينهار: الملف رُفض مبكرًا — جرّب المتغيرات الباقية، أو اختبار USB عبر Media Player (الملفات في مجلد media).<br>
-            <b style="color:var(--amber)">الخطأ</b> بدون انهيار = رفض مبكر (ليس فشل الثغرة). الانهيار = تأكيد ميداني لـ heap overflow في demuxer النظام.
-        </div>
+  <!-- Primary Execution Card -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Exploit Trigger</div>
     </div>
+    <div class="btn-group-hero">
+      <button class="btn btn-primary" id="btnRun">
+        <span>▶</span> RUN (Full RCE)
+      </button>
+      <button class="btn" id="btnProbe">
+        <span>🔍</span> PROBE (Offsets)
+      </button>
+    </div>
+  </div>
 
-    <details class="advanced">
-        <summary>ADVANCED — payload editor · log · dev tools</summary>
-        <textarea class="ta" id="payloadCode" spellcheck="false" placeholder="custom JS payload — runs post-RCE (window.ps5kern / rwView / scratchWords / kernelBase …)"></textarea>
-        <div class="row" style="margin-top:12px">
-            <button class="btn" id="btnRunPayload">⚡ RUN PAYLOAD</button>
-            <button class="btn ghost" id="btnLoadNotifyJs">📄 load notification.js</button>
-        </div>
-        <div class="row" style="margin-top:16px; align-items:center;">
-            <label class="toggle"><input type="checkbox" id="chkScan" checked> auto-scan offsets</label>
-            <span style="flex:1"></span>
-            <button class="btn ghost" id="btnCopy">COPY LOG</button>
-            <button class="btn ghost" id="btnClear">CLEAR</button>
-            <button class="btn ghost" id="btnBeacon">BEACON</button>
-        </div>
-        
-        <div class="flex-stats">
-            <div class="stats-col">
-                <div class="sec-title">Variables</div>
-                <div class="kv" id="sysinfo">
-                    <b>fw</b><span>—</span>
-                    <b>webkitBase</b><span>—</span>
-                    <b>kernelBase</b><span>—</span>
-                    <b>notify@</b><span>—</span>
-                    <b>trampoline</b><span>—</span>
-                    <b>scan</b><span>—</span>
-                </div>
-                <div class="sec-title">Scan Info</div>
-                <div class="kv" id="scaninfo">
-                    <b>hc (true)</b><span>—</span>
-                    <b>gd / nt</b><span>—</span>
-                    <b>gps slot</b><span>—</span>
-                    <b>cls slot</b><span>—</span>
-                    <b>ers slot</b><span>—</span>
-                    <b>tramp bytes</b><span>—</span>
-                </div>
-            </div>
-            <div class="stats-col" style="flex: 0 0 160px;">
-                <div class="sec-title" style="text-align: center">Memory</div>
-                <div class="donut-container">
-                    <svg width="120" height="120" viewBox="0 0 120 120">
-                        <circle cx="60" cy="60" r="50" fill="transparent" stroke="rgba(255,255,255,0.05)" stroke-width="10" />
-                        <circle class="donut-segment carrier" cx="60" cy="60" r="50" fill="transparent" stroke="var(--purple-2)" stroke-width="10" stroke-dasharray="0 314" stroke-dashoffset="0" />
-                        <circle class="donut-segment capture" cx="60" cy="60" r="50" fill="transparent" stroke="var(--blue)" stroke-width="10" stroke-dasharray="0 314" stroke-dashoffset="0" />
-                        <circle class="donut-segment drain" cx="60" cy="60" r="50" fill="transparent" stroke="var(--amber)" stroke-width="10" stroke-dasharray="0 314" stroke-dashoffset="0" />
-                        <circle class="donut-segment slab" cx="60" cy="60" r="50" fill="transparent" stroke="var(--emerald)" stroke-width="10" stroke-dasharray="0 314" stroke-dashoffset="0" />
-                    </svg>
-                    <div class="donut-text">0MB</div>
-                </div>
-                <div class="donut-legend">
-                    <div class="dl-item"><div class="dl-dot" style="background:var(--purple-2)"></div>carrier</div>
-                    <div class="dl-item"><div class="dl-dot" style="background:var(--blue)"></div>capture</div>
-                    <div class="dl-item"><div class="dl-dot" style="background:var(--amber)"></div>drain</div>
-                    <div class="dl-item"><div class="dl-dot" style="background:var(--emerald)"></div>slab+arena</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="log-wrap">
-            <div class="log-filter">
-                <button class="filter-btn active" data-filter="all">ALL</button>
-                <button class="filter-btn" data-filter="err">ERR</button>
-                <button class="filter-btn" data-filter="ok">OK</button>
-                <button class="filter-btn" data-filter="warn">WARN</button>
-            </div>
-            <div id="log" data-view="all"><div class="empty">Waiting… select RUN or PROBE</div></div>
-        </div>
-    </details>
+  <!-- Pinned Research Operations (Displayed upon RCE) -->
+  <div class="card" id="payloadCard" style="display:none">
+    <div class="card-header">
+      <div class="card-title">🔥 Pinned Research Operations</div>
+      <span style="font-size:11px;color:var(--emerald);font-weight:600">Post-RCE Ready</span>
+    </div>
+    <div class="grid-payloads">
+      <div class="payload-btn green" id="btnFsprobe">
+        <div class="payload-head"><span>🚀</span> FS & Module Probe</div>
+        <div class="payload-desc">Audit filesystem & inspect libkernel_web</div>
+      </div>
+      <div class="payload-btn purple" id="btnAvPlayer">
+        <div class="payload-head"><span>🎬</span> AvPlayer Demuxer</div>
+        <div class="payload-desc">Test in-process MP4 sample table bounds</div>
+      </div>
+      <div class="payload-btn amber" id="btnShmProbe">
+        <div class="payload-head"><span>💾</span> Shared Memory</div>
+        <div class="payload-desc">Probe /VideoParserThumbnail POSIX SHM</div>
+      </div>
+      <div class="payload-btn cyan" id="btnSysinfo">
+        <div class="payload-head"><span>ℹ️</span> System Telemetry</div>
+        <div class="payload-desc">Kernel base, PID, TID & memory map</div>
+      </div>
+      <div class="payload-btn green" id="btnSprxDumper">
+        <div class="payload-head"><span>📥</span> SPRX Dumper</div>
+        <div class="payload-desc">Dump modules to browser downloads</div>
+      </div>
+      <div class="payload-btn purple" id="btnXmlTest">
+        <div class="payload-head"><span>📄</span> XML Decoder</div>
+        <div class="payload-desc">Test in-memory XML entity buffer</div>
+      </div>
+    </div>
+    
+    <!-- Secondary Tools Row -->
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn" style="flex:1" id="btnToggleHex">🔍 Hex Inspector</button>
+      <button class="btn" style="flex:1" id="btnTestSyscall">🛰 Test Syscalls</button>
+      <a class="btn" style="flex:1" href="video-test.html">▶ Video Page</a>
+    </div>
+    
+    <div id="payloadResult" style="font-family:monospace;font-size:12px;color:var(--cyan);margin-top:10px;padding:6px 10px;background:rgba(0,0,0,0.3);border-radius:6px;display:none"></div>
+  </div>
+
+  <!-- Built-in In-Browser Hex Inspector -->
+  <div class="card" id="hexCard">
+    <div class="card-header">
+      <div class="card-title" id="hexTitle">🔍 Memory Hex Inspector</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn" id="btnExportDump" style="padding:2px 10px;font-size:11px">📥 Download Dump</button>
+        <button class="btn" id="btnCloseHex" style="padding:2px 8px;font-size:11px">✕</button>
+      </div>
+    </div>
+    <div class="hex-controls" style="flex-wrap:wrap">
+      <select class="hex-input" id="hexQuickJump" style="flex:1;min-width:140px;cursor:pointer">
+        <option value="">-- Quick Jump Target --</option>
+        <option value="kernel">libkernel_web Base</option>
+        <option value="webkit">WebKit Base</option>
+        <option value="arena">Arena Backing</option>
+      </select>
+      <input class="hex-input" id="hexAddr" placeholder="Address (0x...)" style="flex:1;min-width:120px">
+      <input class="hex-input" id="hexLen" value="256" style="max-width:70px" placeholder="Bytes">
+      <button class="btn" id="btnReadMem" style="padding:8px 14px">READ</button>
+    </div>
+    <pre class="hex-display" id="hexOut">Ready — click an action or enter an address above.</pre>
+  </div>
+
+  <!-- Terminal Log Console -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Console Output</div>
+      <button class="btn" id="btnClearLog" style="padding:2px 8px;font-size:11px">Clear</button>
+    </div>
+    <div class="log-box" id="log"></div>
+  </div>
 </div>
 
-<!-- hidden anchors used by exploit.js (setCaption / catState / screenLine) -->
-<div id="cap" hidden></div>
-<div id="cat" hidden></div>
-<pre id="scr" hidden></pre>
+<!-- Hidden anchors for exploit.js -->
+<div id="cap" hidden></div><div id="cat" hidden></div><pre id="scr" hidden></pre>
 
 <script>
 "use strict";
-const OFFSETS_URL = "offsets/offsets.json?_=" + Date.now();
 const $ = id => document.getElementById(id);
-const params = new URLSearchParams(location.search);
-const ua = (typeof navigator !== "undefined" && navigator.userAgent) ? navigator.userAgent : "";
-let detectedFw = null;
+const ua = navigator.userAgent || "";
 const fwM = /(?:PlayStation 5\/|PlayStation 5\s+)(\d+)\.(\d+)/i.exec(ua);
-if (fwM) {
-    detectedFw = `${fwM[1].padStart(2,"0")}.${fwM[2].padStart(2,"0")}`;
-}
+const detectedFw = fwM ? `${fwM[1].padStart(2,"0")}.${fwM[2].padStart(2,"0")}` : null;
+const params = new URLSearchParams(location.search);
 const fw = params.get("fw") || detectedFw || "13.60";
 
-let entry = null, colorIdx = 0, isRunning = false, exploitLoaded = false;
-let logLines = [], scrollPending = false;
-const logEl = $("log");
+$("fwBadge").textContent = `FW ${fw}`;
 
-function chip(id, text, cls){ const c=$(id); c.textContent=text; c.className="chip"+(cls?" "+cls:""); }
+let entry = null, isRunning = false;
 
-/* ── timeline phases ── */
-let currentPhase = -1;
-function setPhase(p) {
-    currentPhase = p;
-    for (let i = 0; i <= 5; i++) {
-        const el = $("phase-" + i);
-        if (!el) continue;
-        el.className = "phase";
-        if (i < p) el.classList.add("complete");
-        else if (i === p) el.classList.add("active");
-    }
-}
-
-function updatePhaseFromLog(text) {
-    let newPhase = -1;
-    if (text.includes("BOOT")) newPhase = 0;
-    else if (text.includes("ADDROF-RETURNED")) newPhase = 1;
-    else if (text.includes("SSV-GROOM-ENTER")) newPhase = 2;
-    else if (text.includes("SSV-RETURNED-CLEARED")) newPhase = 3;
-    else if (text.includes("WEBKIT-BASE")) newPhase = 4;
-    else if (text.includes("RCE-READY") || text.includes("PROBE COMPLETE")) newPhase = 5;
-
-    if (newPhase !== -1 && newPhase > currentPhase) {
-        setPhase(newPhase);
-    }
-}
-
-/* ── log filtering & rendering ── */
-document.querySelectorAll(".filter-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-        e.target.classList.add("active");
-        logEl.setAttribute("data-view", e.target.getAttribute("data-filter"));
-        logEl.scrollTop = logEl.scrollHeight;
-    });
-});
-
-function logClass(t){
-    const s = t.toLowerCase();
-    if (/\[fatal\]|\[crash\]/.test(s)) return "err";
-    if (/\[err/.test(s) || /error/.test(s)) return "err";
-    if (/\[ok\]|\[success\]|succe|pass|ready|complete/.test(s)) return "ok";
-    if (/\[warn/.test(s) || /retry|miss|mismatch|abort|fail/.test(s)) return "warn";
-    if (/\[info\]/.test(s)) return "info";
-    return null;
-}
-
-function addLog(text){
-    const empty = logEl.querySelector(".empty"); if (empty) empty.remove();
-    const now = new Date();
-    const ts = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
-    const t = document.createElement("span"); t.className="t"; t.textContent = ts;
-    const x = document.createElement("span");
-    const sp = logClass(text);
-    
-    // Assign generic color class if no severity, but also standard severity class
-    if (sp) {
-        x.className = "severity-" + sp;
-    } else {
-        x.className = "lc-" + (colorIdx++ % 10);
-    }
-    x.textContent = text;
-    
-    const line = document.createElement("div"); 
-    line.className="l"; 
-    line.setAttribute("data-severity", sp || "info");
-    line.append(t, x);
-    
-    logEl.appendChild(line);
-    logLines.push(text);
-    if (logLines.length > 400){ logLines.splice(0, logLines.length-400); }
-    while (logEl.children.length > 400) logEl.firstChild.remove();
-    if (!scrollPending){ scrollPending = true; requestAnimationFrame(()=>{ logEl.scrollTop = logEl.scrollHeight; scrollPending = false; }); }
-    
-    updatePhaseFromLog(text);
+function addLog(msg) {
+  const line = document.createElement("div");
+  line.className = "log-entry" + (msg.includes("[OK]") ? " log-ok" : msg.includes("[ERR]") ? " log-err" : msg.includes("[WARN]") ? " log-warn" : "");
+  line.textContent = msg;
+  const l = $("log");
+  l.appendChild(line);
+  l.scrollTop = l.scrollHeight;
 }
 window.addLog = addLog;
 
-window.addExploitStatus = function(text, cls){
-    const st = $("status");
-    if (cls === "ok"){
-        st.textContent = "✓ " + text;
-        st.className = "ok";
-        setPhase(5); // Ensure phase is 5 when ready
-        $("phase-5").classList.remove("active");
-        $("phase-5").classList.add("complete");
-        $("btnRun").classList.remove("running");
-        $("btnRun").textContent = "▶ RUN";
-        $("btnRun").disabled = false;
-        $("btnProbe").disabled = false;
-        isRunning = false;
-        $("payCard").style.display = "";
-    } else if (cls === "bad"){
-        st.textContent = "✗ " + text; st.className = "bad";
-    } else { st.textContent = text; st.className = "run"; }
+window.addExploitStatus = function(text, cls) {
+  const banner = $("status-banner");
+  banner.className = cls || "run";
+  $("status-text").textContent = text;
+  $("sub-status").textContent = cls === "ok" ? "READY" : cls === "bad" ? "FAILED" : "ACTIVE";
+  
+  if (cls === "ok") {
+    $("payloadCard").style.display = "block";
+    $("btnRun").disabled = false;
+    $("btnRun").innerHTML = "<span>✓</span> RCE ACTIVE";
+    isRunning = false;
+  }
 };
 
-/* ── offsets ── */
-function fwNum(s){ const p=s.split("."); return parseInt(p[0],10)*100 + parseInt(p[1],10); }
-function nearest(data, target){
-    const want = fwNum(target), maj = target.split(".")[0];
-    let best = null, bestd = 1e9;
-    for (const k in data){
-        if (k.split(".")[0] !== maj) continue;
-        const d = Math.abs(fwNum(k) - want);
-        if (d < bestd){ bestd = d; best = k; }
-    }
-    return best;
-}
-
-chip("fw", fw ? `FW ${fw}` : "FW ? (not a PS5 browser)", fw ? "" : "warn");
-chip("chipMode", params.get("probe")==="1" ? "mode: PROBE" : "mode: FULL", params.get("probe")==="1"?"warn":"");
-
-setPhase(0);
-addLog("[INFO] loading offsets/offsets.json");
-fetch(OFFSETS_URL, { cache: "no-store" })
-.then(r => r.json())
-.then(data => {
-    entry = data[fw] || data[fw.replace(/^0+/, '')] || data["13.60"] || data["11.60"];
-    if (entry){
-        $("status").textContent = `✓ FW ${fw} — offsets loaded`;
-        $("status").className = "ok";
-        addLog(`[OK] FW ${fw} — offsets resolved`);
-        enableButtons();
-        autoRunNow();
+// Load offsets table
+fetch("offsets/offsets.json?_=" + Date.now())
+  .then(r => r.json())
+  .then(data => {
+    entry = data[fw] || data["13.60"] || data["11.60"];
+    if (entry) {
+      $("status-banner").className = "ok";
+      $("status-text").textContent = `FW ${fw} offsets ready`;
+      $("sub-status").textContent = "ARMED";
+      addLog(`[OK] FW ${fw} offsets resolved`);
+      if (params.get("go") === "1") startRun("full");
     } else {
-        const near = nearest(data, fw);
-        if (near){
-            entry = data[near];
-            $("status").textContent = `⚠ FW ${fw} — using ${near} (unverified)`;
-            $("status").className = "run";
-            addLog(`[WARN] FW ${fw} not in table — using ${near} (unverified, probe first!)`);
-            addLog("[INFO] run PROBE to verify before the full chain");
-            enableButtons();
-            autoRunNow();
-        } else {
-            $("status").textContent = `✗ FW ${fw} not supported`;
-            $("status").className = "bad";
-            addLog(`[ERR] FW ${fw} unsupported — no offsets`);
-            autoRunNow();
-        }
+      $("status-banner").className = "bad";
+      $("status-text").textContent = `FW ${fw} unsupported`;
     }
-})
-.catch(() => {
-    $("status").textContent = "✗ failed to load offsets";
-    $("status").className = "bad";
-    addLog("[ERR] cannot load offsets/offsets.json");
-    autoRunNow();
-});
+  }).catch(() => {
+    $("status-banner").className = "bad";
+    $("status-text").textContent = "Failed to load offsets table";
+  });
 
-function enableButtons(){
-    $("btnRun").disabled = false;
-    $("btnProbe").disabled = false;
-}
+function startRun(mode) {
+  if (!entry || isRunning) return;
+  isRunning = true;
+  $("status-banner").className = "run";
+  $("status-text").textContent = "Executing WebKit RCE chain…";
+  $("sub-status").textContent = "RUNNING";
+  $("btnRun").disabled = true;
+  $("btnProbe").disabled = true;
 
-/* ── build param string from current UI state ── */
-function buildParams(extra){
-    const q = new URLSearchParams();
-    q.set("go", "1");
-    q.set("fw", fw || "13.60");
-    q.set("hc", entry.hc.join(","));
-    q.set("gd", entry.gd);
-    q.set("notify", entry.nt);
-    q.set("gps", entry.gps);
-    q.set("gpe", entry.gpe);
-    q.set("cls", entry.cls);
-    q.set("cle", entry.cle);
-    q.set("ers", entry.ers);
-    q.set("ere", entry.ere);
-    if ($("chkScan").checked) q.set("scan", "1"); else q.set("scan", "0");
-    for (const k in extra) q.set(k, extra[k]);
-    return q;
-}
+  const q = new URLSearchParams();
+  q.set("go", "1");
+  q.set("fw", fw);
+  q.set("hc", entry.hc.join(","));
+  q.set("gd", entry.gd);
+  q.set("notify", entry.nt);
+  q.set("gps", entry.gps);
+  q.set("gpe", entry.gpe);
+  q.set("cls", entry.cls);
+  q.set("cle", entry.cle);
+  q.set("ers", entry.ers);
+  q.set("ere", entry.ere);
+  if (mode === "probe") { q.set("probe", "1"); q.set("scan", "1"); }
+  window.EXPLOIT_PARAMS = q;
 
-function injectExploit(q){
-    window.EXPLOIT_PARAMS = q;
-    const s = document.createElement("script");
-    s.src = "kernel-stubs.js?_=" + Date.now();
-    s.onerror = () => {
-        addLog("[ERR] cannot load kernel-stubs.js");
-        exploitLoaded = false; isRunning = false;
-        $("btnRun").classList.remove("running");
-        $("btnRun").textContent = "▶ RUN";
-        setPhase(-1);
-    };
-    s.onload = () => {
-        addLog("[INFO] kernel-stubs.js loaded");
-        if (params.get("legacy") === "1") {
-            const e = document.createElement("script");
-            e.src = "exploit.js?_=" + Date.now();
-            e.onerror = () => {
-                addLog("[ERR] cannot load exploit.js");
-                exploitLoaded = false; isRunning = false;
-                $("btnRun").classList.remove("running");
-                $("btnRun").textContent = "▶ RUN";
-                setPhase(-1);
-            };
-            document.head.appendChild(e);
-            addLog("[INFO] exploit.js injected (legacy mode)");
-        } else {
-            const scripts = ["ds-config.js", "ds-primitives.js", "ds-addrof.js", "ds-composition.js", "ds-kernel.js", "ds-main.js"];
-            let idx = 0;
-            function loadNext() {
-                if (idx >= scripts.length) {
-                    addLog("[INFO] all modular scripts loaded");
-                    return;
-                }
-                const currentName = scripts[idx];
-                const script = document.createElement("script");
-                script.src = currentName + "?_=" + Date.now();
-                script.onerror = () => {
-                    addLog("[ERR] cannot load " + currentName);
-                    exploitLoaded = false; isRunning = false;
-                    $("btnRun").classList.remove("running");
-                    $("btnRun").textContent = "▶ RUN";
-                    setPhase(-1);
-                };
-                script.onload = () => {
-                    idx++;
-                    loadNext();
-                };
-                document.head.appendChild(script);
-            }
-            loadNext();
-        }
-    };
-    document.head.appendChild(s);
-}
-
-function startRun(mode){
-    if (!entry || isRunning) return;
-    isRunning = true;
-    setPhase(0);
-    window.addExploitStatus("Initializing…", "run");
-    addLog(`[INFO] launching exploit — ${mode}`);
-    if (exploitLoaded){ addLog("[INFO] exploit already active — reload the page to run again"); return; }
-    exploitLoaded = true;
-    $("btnRun").classList.add("running");
-    $("btnRun").textContent = "RUNNING";
-    $("btnRun").disabled = true;
-    $("btnProbe").disabled = true;
-    const extra = {};
-    if (mode === "probe"){ extra.probe = "1"; extra.scan = "1"; }
-    injectExploit(buildParams(extra));
-}
-
-$("btnRun").addEventListener("click", () => startRun("full"));
-$("btnProbe").addEventListener("click", () => startRun("probe"));
-
-/* ── mode switches (reload keeps flags for exploit.js) ── */
-function reloadWith(patch){
-    const q = new URLSearchParams(location.search);
-    for (const k in patch){ if (patch[k] === null) q.delete(k); else q.set(k, patch[k]); }
-    location.href = location.pathname + (q.toString() ? "?" + q.toString() : "");
-}
-$("btnBeacon").addEventListener("click", () => {
-    const on = params.get("log") === "1";
-    addLog(on ? "[INFO] beacons OFF — reloading" : "[INFO] beacons ON (sync XHR to /log/<msg> — server must return 200) — reloading");
-    reloadWith(on ? { log: null } : { log: "1" });
-});
-
-$("btnClear").addEventListener("click", () => {
-    logEl.innerHTML = "";
-    logLines = [];
-    addLog("[INFO] log cleared");
-});
-$("btnCopy").addEventListener("click", () => {
-    const text = logLines.join("\n");
-    if (!navigator.clipboard || !navigator.clipboard.writeText){
-        addLog("[WARN] clipboard unavailable — use BEACON to send log to server");
-        return;
+  const s = document.createElement("script");
+  s.src = "kernel-stubs.js?_=" + Date.now();
+  s.onload = () => {
+    const scripts = ["ds-config.js", "ds-primitives.js", "ds-addrof.js", "ds-composition.js", "ds-kernel.js", "ds-main.js"];
+    let idx = 0;
+    function loadNext() {
+      if (idx >= scripts.length) { addLog("[OK] Exploit modules loaded"); return; }
+      const sc = document.createElement("script");
+      sc.src = scripts[idx++] + "?_=" + Date.now();
+      sc.onload = loadNext;
+      sc.onerror = () => { addLog("[ERR] Failed to load " + scripts[idx-1]); };
+      document.head.appendChild(sc);
     }
-    navigator.clipboard.writeText(text)
-        .then(() => addLog("[OK] log copied to clipboard"))
-        .catch(() => addLog("[WARN] clipboard unavailable — use BEACON to send log to server"));
-});
+    loadNext();
+  };
+  document.head.appendChild(s);
+}
 
-/* ── on-device payloads (no PC / no WebSocket) ── */
-function payloadReady(){
-    if (window.notifyReady === true) return true;
-    addLog("[WARN] exploit not armed yet — run RUN or PROBE first (payloads need RCE)");
-    return false;
-}
-function payState(id, cls){
-    const b = $(id);
-    if (!b) return;
-    b.classList.remove("spin", "ok", "fail");
-    if (cls) b.classList.add(cls);
-}
-function payOut(msg){
-    $("payloadResult").textContent = msg || "";
-}
-function runPayloadFile(name, buttonId){
-    if (!payloadReady()) return;
-    payState(buttonId, "spin");
-    fetch("payloads/" + name + ".js?_=" + Date.now())
-        .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-        .then(code => {
-            try {
-                const res = (0, eval)(code);
-                if (res && typeof res.then === "function"){
-                    res.then(v => {
-                        if (v !== undefined){ payOut(String(v)); addLog("[OK] " + name + " → " + String(v).slice(0, 80)); }
-                        payState(buttonId, "ok");
-                    }).catch(e => {
-                        payState(buttonId, "fail");
-                        addLog("[ERR] " + name + ": " + (e && e.name) + ": " + String(e && e.message).slice(0, 120));
-                    });
-                    return;
-                }
-                const msg = res !== undefined ? String(res) : "done";
-                payOut(msg);
-                payState(buttonId, "ok");
-            } catch (e) {
-                payState(buttonId, "fail");
-                addLog("[ERR] " + name + ": " + (e && e.name) + ": " + String(e && e.message).slice(0, 120));
-            }
-        })
-        .catch(e => { payState(buttonId, "fail"); addLog("[ERR] fetch " + name + ": " + e.message); });
-}
-$("btnSysinfo").addEventListener("click", () => runPayloadFile("sysinfo", "btnSysinfo"));
-$("btnFsprobe").addEventListener("click", () => runPayloadFile("fsprobe", "btnFsprobe"));
-$("btnHello").addEventListener("click", () => runPayloadFile("helloworld", "btnHello"));
-$("btnInfo").addEventListener("click", () => runPayloadFile("deepslop_info", "btnInfo"));
-$("btnAvPlayer").addEventListener("click", () => runPayloadFile("avplayer_test", "btnAvPlayer"));
-$("btnXmlTest").addEventListener("click", () => runPayloadFile("xml_test", "btnXmlTest"));
-$("btnCanaryProbe").addEventListener("click", () => runPayloadFile("mem_canary_probe", "btnCanaryProbe"));
-$("btnApiCheck").addEventListener("click", () => runPayloadFile("api_return_checker", "btnApiCheck"));
-$("btnSysmoduleProbe").addEventListener("click", () => runPayloadFile("sysmodule_internal_probe", "btnSysmoduleProbe"));
-$("btnIpmiFuzzer").addEventListener("click", () => runPayloadFile("ipmi_fuzzer", "btnIpmiFuzzer"));
-$("btnTelemetry").addEventListener("click", () => runPayloadFile("telemetry", "btnTelemetry"));
-$("btnNotify").addEventListener("click", () => {
-    if (!payloadReady()) return;
-    const t = $("notifyText").value.trim() || "DEEPSLOP on-device payload";
-    try {
-        const r = window.send_notification(t);
-        payOut("notification sent: " + t);
-        addLog("[OK] notification sent: " + t);
-        payState("btnNotify", "ok");
-    } catch (e) { payState("btnNotify", "fail"); addLog("[ERR] notify: " + e); }
-});
-$("btnReport").addEventListener("click", () => {
-    if (!payloadReady()) return;
-    const info = window.deepslopInfo;
-    const scan = window.deepslopScanOffsets ? window.deepslopScanOffsets() : null;
-    const mem = window.deepslopMemEstimate ? window.deepslopMemEstimate() : null;
-    const f = n => n == null ? "—" : "0x" + Number(n).toString(16);
-    addLog("[INFO] ── deepslop report ──");
-    addLog("[INFO] fw=" + (info ? info.fw : "—") + " webkit=" + f(info && info.webkitBase)
-        + " kernel=" + f(info && info.kernelBase));
-    addLog("[INFO] notify@" + f(info && info.notifyEntryAddress)
-        + " trampoline@" + f(info && info.naturalTrampolineAddress));
-    if (scan){
-        addLog("[INFO] scan: hc=" + f(scan.hc) + " gd=" + f(scan.gd) + " nt=" + f(scan.nt)
-            + " gps=" + f(scan.gps) + " cls=" + f(scan.cls) + " ers=" + f(scan.ers));
-        if (scan.verified) addLog("[INFO] verified: " + JSON.stringify(scan.verified));
-        if (scan.stubs) addLog("[INFO] kernel stubs: " + (scan.stubs.verified ? "verified ✓ " + Object.keys(scan.stubs.addresses || {}).join(",") : "fallback-9.00"));
-    }
-    if (mem) addLog("[INFO] mem: " + Math.round(mem.totalBytes/1048576) + "MB total"
-        + " · carrier=" + Math.round(mem.carrierBytes/1048576) + "MB"
-        + " · capture=" + Math.round(mem.captureStringBytes/1048576) + "MB"
-        + " · drain=" + Math.round(mem.drainBytes/1048576) + "MB"
-        + " · slab=" + Math.round(mem.slabBytes/1048576) + "MB"
-        + " · arena=" + Math.round(mem.arenaBytes/1024) + "KB");
-    addLog("[OK] report complete");
-});
-$("btnSyscall").addEventListener("click", () => {
-    if (!payloadReady()) return;
-    if (typeof window.syscallDemo !== "function"){
-        addLog("[ERR] syscallDemo unavailable — initKernel() failed on this run");
-        return;
-    }
-    addLog("[INFO] running clean syscall battery (pipe ×2 + close)…");
-    try {
-        const r = window.syscallDemo();
-        addLog("[OK] syscall battery done:");
-        addLog("[INFO]  pipe #1    → fds=[" + r.fds.join(", ") + "]"
-            + (r.pipe && r.pipe.error ? " err=" + r.pipe.error : " ✓ syscall executed"));
-        if (r.close1 && r.close1.error) addLog("[WARN] close1: " + r.close1.error);
-        addLog("[INFO]  pipe #2    → fds=[" + r.fds2.join(", ") + "]"
-            + (r.pipe2 && r.pipe2.error ? " err=" + r.pipe2.error : " ✓"));
-        addLog("[INFO]  libkernel  = " + r.libkernel + " · ropReady=" + r.ropReady);
-        if (window.ps5kern){
-            const st = window.ps5kern.stubReport();
-            addLog("[INFO]  stubs: " + st.stubScan + " (" + st.scanned.join(",") + ")");
-        }
-        payOut("pipe fds [" + r.fds.join(", ") + "]");
-    } catch (e) {
-        addLog("[ERR] syscall battery threw: " + String(e && e.message));
-    }
-});
-$("btnRemotePc").addEventListener("click", () => {
-    if (!payloadReady()) return;
-    if (typeof window.enableRemotePC !== "function"){
-        addLog("[ERR] enableRemotePC unavailable");
-        return;
-    }
-    addLog("[INFO] enabling PC remote — fetching http://" + (window.RCE_PC_IP ? window.RCE_PC_IP.join(".") : "PC") + ":8080/remote.js …");
-    window.enableRemotePC().then(res => {
-        if (res && res.ok){
-            addLog("[OK] PC remote loaded — WebSocket REPL active (ws://PC:50000)");
-        } else {
-            addLog("[WARN] PC remote failed: " + (res && res.error));
-            addLog("[INFO] check ws_server.py is running on your PC + RCE_PC_IP in exploit.js");
-        }
-    });
-});
-$("btnCommit").addEventListener("click", () => {
-    if (!payloadReady()) return;
-    addLog("[INFO] committing RCE — notification + chain");
-    try { window.commitRce(); }
-    catch (e) { addLog("[ERR] commitRce: " + e); }
-});
-function runPayloadCode(code){
-    if (!payloadReady()) return;
-    if (!code || !code.trim()){ addLog("[WARN] empty payload"); return; }
-    addLog("[INFO] running on-device payload (" + code.length + " bytes)");
-    try {
+$("btnRun").onclick = () => startRun("full");
+$("btnProbe").onclick = () => startRun("probe");
+$("btnClearLog").onclick = () => { $("log").innerHTML = ""; };
+
+// Payload Dispatcher
+function runPayload(name) {
+  recordAction("Payload: " + name);
+  if (window.notifyReady !== true) { addLog("[WARN] Run exploit first"); return; }
+  const resBox = $("payloadResult");
+  resBox.style.display = "block";
+  resBox.textContent = "Executing " + name + "…";
+  
+  fetch("payloads/" + name + ".js?_=" + Date.now())
+    .then(r => r.text())
+    .then(code => {
+      try {
         const res = (0, eval)(code);
-        if (res !== undefined){ addLog("[INFO] payload returned: " + String(res)); payOut(String(res)); }
-        addLog("[OK] payload executed");
-    } catch (e) {
-        addLog("[ERR] payload threw: " + (e && e.name) + ": " + String(e && e.message).slice(0, 120));
-    }
-}
-$("btnRunPayload").addEventListener("click", () => runPayloadCode($("payloadCode").value));
-$("btnLoadNotifyJs").addEventListener("click", () => {
-    addLog("[INFO] fetching payloads/notification.js from same origin…");
-    fetch("payloads/notification.js?_=" + Date.now())
-        .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-        .then(code => { $("payloadCode").value = code; addLog("[OK] notification.js loaded into editor"); })
-        .catch(e => addLog("[ERR] fetch payload: " + e.message));
-});
-
-/* ── poll deepslop state (bases + scan + memory) ── */
-function fmt(n){ return n == null ? "—" : "0x" + Number(n).toString(16); }
-
-function updateDonut(mem) {
-    if (!mem) return;
-    const total = mem.totalBytes || 1;
-    const carrierPct = mem.carrierBytes / total;
-    const capturePct = mem.captureStringBytes / total;
-    const drainPct = mem.drainBytes / total;
-    const slabPct = (mem.slabBytes + mem.arenaBytes) / total;
-
-    const circ = 2 * Math.PI * 50;
-    let offset = 0;
-
-    const setSegment = (cls, pct) => {
-        const el = document.querySelector(`.donut-segment.${cls}`);
-        if (!el) return;
-        const len = pct * circ;
-        el.style.strokeDasharray = `${len} ${circ}`;
-        el.style.strokeDashoffset = -offset;
-        offset += len;
-    };
-
-    setSegment('carrier', carrierPct);
-    setSegment('capture', capturePct);
-    setSegment('drain', drainPct);
-    setSegment('slab', slabPct);
-
-    const donutText = document.querySelector('.donut-text');
-    if (donutText) donutText.textContent = Math.round(total / 1048576) + "MB";
-}
-
-setInterval(() => {
-    const info = window.deepslopInfo;
-    if (info){
-        const s = document.querySelectorAll("#sysinfo span");
-        if (s.length >= 6){
-            s[0].textContent = info.fw || "—";
-            s[1].textContent = fmt(info.webkitBase);
-            s[2].textContent = fmt(info.kernelBase);
-            s[3].textContent = fmt(info.notifyEntryAddress);
-            s[4].textContent = fmt(info.naturalTrampolineAddress);
-            s[5].textContent = info.scan ? "done ✓" : "—";
-            s[5].className = info.scan ? "good" : "";
+        if (res && res.then) {
+          res.then(v => { resBox.textContent = v || "Operation completed successfully"; });
+        } else {
+          resBox.textContent = res !== undefined ? String(res) : "Operation completed successfully";
         }
-        const scan = window.deepslopScanOffsets ? window.deepslopScanOffsets() : null;
-        if (scan){
-            const sl = document.querySelectorAll("#scaninfo span");
-            if (sl.length >= 6){
-                sl[0].textContent = fmt(scan.hc) + (scan.verified && scan.verified.hc ? " ✓" : " ⚠");
-                sl[0].className = scan.verified && scan.verified.hc ? "good" : "warn";
-                sl[1].textContent = fmt(scan.gd) + " / " + fmt(scan.nt);
-                const g = scan.found.gps, c = scan.found.cls, e = scan.found.ers;
-                sl[2].textContent = g && g.length ? fmt(g[g.length-1]) + (g.includes(scan.gps)?" ✓":"") : "none";
-                sl[3].textContent = c && c.length ? fmt(c[c.length-1]) + (c.includes(scan.cls)?" ✓":"") : "none";
-                sl[4].textContent = e && e.length ? fmt(e[e.length-1]) + (e.includes(scan.ers)?" ✓":"") : "none";
-                sl[5].textContent = scan.verified && scan.verified.trampolineBytes
-                    ? (String(scan.verified.trampolineBytes).includes("mismatch") ? scan.verified.trampolineBytes : "bytes OK ✓")
-                    : "—";
-                sl[5].className = String(scan.verified && scan.verified.trampolineBytes).includes("mismatch") ? "bad" : "good";
-            }
-        }
-    }
-    const mem = window.deepslopMemEstimate ? window.deepslopMemEstimate() : null;
-    if (mem){
-        updateDonut(mem);
-    }
-}, 800);
-
-/* auto-run when ?go=1 present (mode-switch reloads) — deferred until offsets
-   are resolved so the fw/hc/gd/... params are always populated */
-function autoRunNow(){
-    if (params.get("go") !== "1" || isRunning) return;
-    addLog("[INFO] ?go=1 detected — auto-arming");
-    const q = new URLSearchParams();
-    q.set("go","1");
-    q.set("fw", fw || "13.60");
-    if (entry){
-        q.set("hc", entry.hc.join(","));
-        q.set("gd", entry.gd); q.set("notify", entry.nt);
-        q.set("gps", entry.gps); q.set("gpe", entry.gpe);
-        q.set("cls", entry.cls); q.set("cle", entry.cle);
-        q.set("ers", entry.ers); q.set("ere", entry.ere);
-    } else {
-        addLog("[WARN] no offsets table entry — exploit.js will fall back to built-in 11.60");
-    }
-    for (const k of ["probe","scan","log","n","max","rd","cap","gap","pc"])
-        if (params.has(k)) q.set(k, params.get(k));
-    isRunning = true; exploitLoaded = true;
-    setPhase(0);
-    window.addExploitStatus("Initializing…", "run");
-    $("btnRun").classList.add("running");
-    $("btnRun").textContent = "RUNNING";
-    $("btnRun").disabled = true; $("btnProbe").disabled = true;
-    injectExploit(q);
+      } catch(e) {
+        addLog("[ERR] " + name + ": " + (e && e.message));
+        resBox.textContent = "Error: " + (e && e.message);
+      }
+    });
 }
-autoRunNow();
+
+$("btnFsprobe").onclick = () => runPayload("fsprobe");
+$("btnAvPlayer").onclick = () => runPayload("avplayer_test");
+$("btnShmProbe").onclick = () => runPayload("shm_probe");
+$("btnSysinfo").onclick = () => runPayload("sysinfo");
+
+// ── Crash-Safe Forensic Recorder ──
+try {
+  const lastState = localStorage.getItem("ds_run_state");
+  const lastAction = localStorage.getItem("ds_last_action");
+  if (lastState === "running") {
+    addLog(`[FORENSIC] ⚠ Previous session ended during: ${lastAction || "RCE execution"}`);
+    localStorage.removeItem("ds_run_state");
+  }
+} catch(e) {}
+
+function recordAction(actionName) {
+  try {
+    localStorage.setItem("ds_run_state", "running");
+    localStorage.setItem("ds_last_action", actionName);
+  } catch(e) {}
+}
+
+function clearActionState() {
+  try { localStorage.setItem("ds_run_state", "completed"); } catch(e) {}
+}
+
+let lastViewedBytes = null;
+let lastViewedAddr = 0;
+
+$("btnExportDump").onclick = () => {
+  if (!lastViewedBytes) { addLog("[WARN] No data currently in Hex Inspector to export"); return; }
+  try {
+    const blob = new Blob([lastViewedBytes], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dump_0x${lastViewedAddr.toString(16)}.bin`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    addLog(`[OK] Exported ${lastViewedBytes.length} bytes to dump file`);
+  } catch(e) { addLog("[ERR] Export failed: " + e.message); }
+};
+
+$("hexQuickJump").onchange = (e) => {
+  const v = e.target.value;
+  const info = window.deepslopInfo || {};
+  if (v === "kernel" && info.kernelBase) $("hexAddr").value = window.toHex(info.kernelBase);
+  else if (v === "webkit" && info.webkitBase) $("hexAddr").value = window.toHex(info.webkitBase);
+  else if (v === "arena" && info.arenaBacking) $("hexAddr").value = window.toHex(info.arenaBacking);
+  if ($("hexAddr").value) $("btnReadMem").click();
+};
+
+$("btnSprxDumper").onclick = () => runPayload("sprx_dumper");
+$("btnXmlTest").onclick = () => runPayload("xml_test");
+
+
+// Hex Inspector
+function showHexViewer(title, bytes, baseAddr) {
+  lastViewedBytes = bytes; lastViewedAddr = baseAddr || 0;
+  baseAddr = baseAddr || 0;
+  $("hexCard").style.display = "block";
+  $("hexTitle").textContent = "🔍 " + (title || "Hex Inspector");
+  if (window.hexDump && bytes) {
+    $("hexOut").textContent = window.hexDump(bytes, baseAddr, bytes.length);
+  }
+  $("hexCard").scrollIntoView({ behavior: "smooth" });
+}
+window.showHexViewer = showHexViewer;
+
+$("btnToggleHex").onclick = () => {
+  const hc = $("hexCard");
+  hc.style.display = (hc.style.display === "none" || !hc.style.display) ? "block" : "none";
+};
+$("btnCloseHex").onclick = () => { $("hexCard").style.display = "none"; };
+
+$("btnReadMem").onclick = () => {
+  const str = $("hexAddr").value.trim();
+  const len = parseInt($("hexLen").value.trim(), 10) || 256;
+  if (!str) return;
+  const addr = str.startsWith("0x") ? parseInt(str, 16) : parseInt(str, 10);
+  if (window.readBytes) {
+    try {
+      const b = window.readBytes(addr, len);
+      showHexViewer("Memory 0x" + addr.toString(16).toUpperCase(), b, addr);
+    } catch(e) { addLog("[ERR] Read failed: " + e.message); }
+  }
+};
+
+$("btnTestSyscall").onclick = () => {
+  if (typeof window.syscallClean === "function" && window.SYSCALL) {
+    const r = window.syscallClean(window.SYSCALL.getpid, 0, 0);
+    addLog(`[OK] Syscall getpid() -> PID ${r && r.ret}`);
+  }
+};
 </script>
 </body>
 </html>

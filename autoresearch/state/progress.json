@@ -1,14 +1,22 @@
 {
-  "iteration": 2,
-  "total_findings": 13,
+  "iteration": 3,
+  "total_findings": 18,
   "status": "completed",
   "stale_count": 0,
-  "last_updated": "2026-08-13T20:09:22Z",
+  "last_updated": "2026-08-16T00:00:00Z",
   "metrics": {
     "firmwares_verified": 23,
     "payloads_audited": 12,
-    "libraries_audited": 22,
-    "vulnerability_classes_analyzed": 5,
-    "test_pass_rate": 1.0
-  }
+    "libraries_audited": 26,
+    "vulnerability_classes_analyzed": 6,
+    "test_pass_rate": 1.0,
+    "web_surface_libraries_catalogued": 26,
+    "exports_catalogued": 1695,
+    "imports_catalogued": 1943,
+    "firmwares_differentially_compared": 17,
+    "firmware_series_confirmed_coherent": 3,
+    "security_relevant_patches_found_1200_to_1270": 0,
+    "parser_bounds_verified_clean": 3
+  },
+  "iteration_3_summary": "Completed comprehensive security architecture audit of 26 web-connected SPRX libraries on FW 12.70: full export/import taxonomy (1695/1943), parser deep-dives (libSceAvPlayer stts family persistent, libSceXml decoder persistent, libSceJson2 hardened, libSceWebmParserMdrw bounded, libSceVnaWebsocket bounded), protocol engines (libSceHttp2 embedded zlib 1.2.13, libSceWebTransport ngtcp2), IPC trust boundary mapping (libSceIpmi ipmimgr_call/authinfo, libSceNetCtl/libSceWtIpcClient thin clients), and firmware differential (12.00→12.20→12.70 zero semantic changes; 12.60 excluded as divergent build line). Report: autoresearch/audit_report_12_70_web_surface.md."
 }
