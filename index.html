@@ -376,6 +376,14 @@
       <span style="font-size:11px;color:var(--emerald);font-weight:600">Post-RCE Ready</span>
     </div>
     <div class="grid-payloads">
+      <div class="payload-btn cyan" id="btnSyscoreProbe">
+        <div class="payload-head"><span>⚡</span> SceSysCore Ipmi Probe</div>
+        <div class="payload-desc">Probe syscall 0x26e ipmimgr_call & reachability</div>
+      </div>
+      <div class="payload-btn green" id="btnSprxDumper">
+        <div class="payload-head"><span>📥</span> SPRX Dumper</div>
+        <div class="payload-desc">Dump modules to browser downloads</div>
+      </div>
       <div class="payload-btn green" id="btnFsprobe">
         <div class="payload-head"><span>🚀</span> FS & Module Probe</div>
         <div class="payload-desc">Audit filesystem & inspect libkernel_web</div>
@@ -392,13 +400,40 @@
         <div class="payload-head"><span>ℹ️</span> System Telemetry</div>
         <div class="payload-desc">Kernel base, PID, TID & memory map</div>
       </div>
-      <div class="payload-btn green" id="btnSprxDumper">
-        <div class="payload-head"><span>📥</span> SPRX Dumper</div>
-        <div class="payload-desc">Dump modules to browser downloads</div>
+      <div class="payload-btn purple" id="btnIpmiFuzzer">
+        <div class="payload-head"><span>📡</span> Ipmi Fuzzer</div>
+        <div class="payload-desc">Fuzz libSceIpmi client session methods</div>
       </div>
-      <div class="payload-btn purple" id="btnXmlTest">
+      <div class="payload-btn amber" id="btnXmlTest">
         <div class="payload-head"><span>📄</span> XML Decoder</div>
         <div class="payload-desc">Test in-memory XML entity buffer</div>
+      </div>
+    </div>
+
+    <!-- Universal Dynamic Payload Injector -->
+    <div style="margin-top:14px;padding:12px;background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">
+        🚀 Inject Any Payload
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select class="hex-input" id="selPayload" style="flex:2;min-width:200px;cursor:pointer;background:#0d1527">
+          <option value="syscore_connect_probe">syscore_connect_probe.js — SceSysCore Ipmi Probe (F-021/022)</option>
+          <option value="sprx_dumper">sprx_dumper.js — Dump libkernel / AvPlayer / SysBridge</option>
+          <option value="fsprobe">fsprobe.js — Filesystem Audit & Kernel ELF Header</option>
+          <option value="shm_probe">shm_probe.js — Shared Memory Descriptors Probe</option>
+          <option value="sysinfo">sysinfo.js — System Telemetry (PID/TID/KernelBase)</option>
+          <option value="avplayer_test">avplayer_test.js — In-Process MP4 Demuxer Test</option>
+          <option value="ipmi_fuzzer">ipmi_fuzzer.js — IPMI Handler Method Fuzzer</option>
+          <option value="mem_canary_probe">mem_canary_probe.js — Memory Canary Integrity Probe</option>
+          <option value="sysmodule_internal_probe">sysmodule_internal_probe.js — System Module Probe</option>
+          <option value="xml_test">xml_test.js — XML Entity Decoder Test</option>
+          <option value="api_return_checker">api_return_checker.js — Syscall Return Code Matrix</option>
+          <option value="deepslop_info">deepslop_info.js — DeepSlop RCE Telemetry Report</option>
+          <option value="notification">notification.js — Send OS System Notification</option>
+          <option value="helloworld">helloworld.js — Basic Userland RCE Sanity</option>
+          <option value="telemetry">telemetry.js — Remote/Local Telemetry Log</option>
+        </select>
+        <button class="btn btn-primary" id="btnRunSelectedPayload" style="padding:9px 18px">Inject</button>
       </div>
     </div>
     
@@ -634,13 +669,14 @@ $("btnClearLog").onclick = () => { $("log").innerHTML = ""; };
 
 // Payload Dispatcher
 function runPayload(name) {
-  recordAction("Payload: " + name);
+  const cleanName = String(name || "").trim().replace(/\.js$/i, "");
+  recordAction("Payload: " + cleanName);
   if (window.notifyReady !== true) { addLog("[WARN] Run exploit first"); return; }
   const resBox = $("payloadResult");
   resBox.style.display = "block";
-  resBox.textContent = "Executing " + name + "…";
+  resBox.textContent = "Executing " + cleanName + "…";
   
-  fetch("payloads/" + name + ".js?_=" + Date.now())
+  fetch("payloads/" + cleanName + ".js?_=" + Date.now())
     .then(r => r.text())
     .then(code => {
       try {
@@ -657,10 +693,24 @@ function runPayload(name) {
     });
 }
 
+window.payOut = function(m) {
+  const el = $("payloadResult");
+  if (el) { el.style.display = "block"; el.textContent = m; }
+};
+
+$("btnSyscoreProbe").onclick = () => runPayload("syscore_connect_probe");
+$("btnSprxDumper").onclick = () => runPayload("sprx_dumper");
 $("btnFsprobe").onclick = () => runPayload("fsprobe");
 $("btnAvPlayer").onclick = () => runPayload("avplayer_test");
 $("btnShmProbe").onclick = () => runPayload("shm_probe");
 $("btnSysinfo").onclick = () => runPayload("sysinfo");
+$("btnIpmiFuzzer").onclick = () => runPayload("ipmi_fuzzer");
+$("btnXmlTest").onclick = () => runPayload("xml_test");
+
+$("btnRunSelectedPayload").onclick = () => {
+  const sel = $("selPayload");
+  if (sel && sel.value) runPayload(sel.value);
+};
 
 // ── Crash-Safe Forensic Recorder ──
 try {
