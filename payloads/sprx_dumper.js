@@ -40,9 +40,16 @@
     if (info.kernelBase) {
         log("[*] Dumping libkernel_web from memory (Base: " + window.toHex(info.kernelBase) + ")...");
         try {
-            // Read 256KB for libkernel_web text/data segments
+            const readFn = window.aimRead || window.readBytes;
             const dumpSize = 0x40000; // 256KB
-            const kernelBytes = window.readBytes(Number(info.kernelBase), dumpSize);
+            const kernelBytes = new Uint8Array(dumpSize);
+            const chunkSize = 0x1000; // 4KB chunks
+            
+            for (let off = 0; off < dumpSize; off += chunkSize) {
+                const len = Math.min(chunkSize, dumpSize - off);
+                const chunk = readFn(Number(info.kernelBase) + off, len);
+                if (chunk) kernelBytes.set(chunk, off);
+            }
             
             if (kernelBytes[0] === 0x7F && kernelBytes[1] === 0x45 && kernelBytes[2] === 0x4C && kernelBytes[3] === 0x46) {
                 log("[OK] Valid ELF64 header verified for libkernel_web");

