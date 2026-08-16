@@ -358,9 +358,12 @@
         <span>▶</span> RUN (Full RCE)
       </button>
       <button class="btn" id="btnProbe">
-        <span>🔍</span> PROBE (Offsets)
+        <span>🔍</span> PROBE (Scan Offsets)
       </button>
     </div>
+    <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:10px;cursor:pointer">
+      <input type="checkbox" id="chkScan"> Auto-scan offsets (Unchecked = Fast OOM-Safe)
+    </label>
   </div>
 
   <!-- Pinned Research Operations (Displayed upon RCE) -->
@@ -511,32 +514,47 @@ function startRun(mode) {
   const q = new URLSearchParams();
   q.set("go", "1");
   q.set("fw", fw);
-  q.set("hc", entry.hc.join(","));
-  q.set("gd", entry.gd);
-  q.set("notify", entry.nt);
-  q.set("gps", entry.gps);
-  q.set("gpe", entry.gpe);
-  q.set("cls", entry.cls);
-  q.set("cle", entry.cle);
-  q.set("ers", entry.ers);
-  q.set("ere", entry.ere);
-  if (mode === "probe") { q.set("probe", "1"); q.set("scan", "1"); }
+  if (entry) {
+    if (entry.hc) q.set("hc", entry.hc.join(","));
+    if (entry.gd) q.set("gd", entry.gd);
+    if (entry.nt) q.set("notify", entry.nt);
+    if (entry.gps) q.set("gps", entry.gps);
+    if (entry.gpe) q.set("gpe", entry.gpe);
+    if (entry.cls) q.set("cls", entry.cls);
+    if (entry.cle) q.set("cle", entry.cle);
+    if (entry.ers) q.set("ers", entry.ers);
+    if (entry.ere) q.set("ere", entry.ere);
+  }
+  
+  const scanChecked = $("chkScan") ? $("chkScan").checked : false;
+  if (mode === "probe" || scanChecked) {
+    q.set("scan", "1");
+    if (mode === "probe") q.set("probe", "1");
+    addLog("[INFO] Starting exploit with auto-scan enabled");
+  } else {
+    q.set("scan", "0"); // OOM-SAFE mode (fast & zero memory pressure)
+    addLog("[INFO] Starting exploit in fast OOM-safe mode (offsets.json)");
+  }
+  
   window.EXPLOIT_PARAMS = q;
 
   const s = document.createElement("script");
   s.src = "kernel-stubs.js?_=" + Date.now();
   s.onload = () => {
-    const scripts = ["ds-config.js", "ds-primitives.js", "ds-addrof.js", "ds-composition.js", "ds-kernel.js", "ds-main.js"];
-    let idx = 0;
-    function loadNext() {
-      if (idx >= scripts.length) { addLog("[OK] Exploit modules loaded"); return; }
-      const sc = document.createElement("script");
-      sc.src = scripts[idx++] + "?_=" + Date.now();
-      sc.onload = loadNext;
-      sc.onerror = () => { addLog("[ERR] Failed to load " + scripts[idx-1]); };
-      document.head.appendChild(sc);
-    }
-    loadNext();
+    const expScript = document.createElement("script");
+    expScript.src = "exploit.js?" + q.toString() + "&_=" + Date.now();
+    expScript.onload = () => { addLog("[OK] Exploit engine executing"); };
+    expScript.onerror = () => {
+      addLog("[ERR] Failed to load exploit.js");
+      $("status-banner").className = "bad";
+      $("status-text").textContent = "Exploit load error";
+      isRunning = false;
+      $("btnRun").disabled = false;
+    };
+    document.body.appendChild(expScript);
+  };
+  s.onerror = () => {
+    addLog("[ERR] Failed to load kernel-stubs.js");
   };
   document.head.appendChild(s);
 }

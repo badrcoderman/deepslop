@@ -85,10 +85,9 @@
                 scratchWords[1] = high;
                 for (var i = 0; i < 8; ++i)
                     candidate[0x10 + i] = scratchBytes[i];
-                var chunk = new Uint8Array(0x100);
                 for (var j = 0; j < 0x100; ++j)
-                    chunk[j] = s.rwView[j];
-                return chunk;
+                    scanChunk[j] = s.rwView[j];
+                return scanChunk;
             },
         });
         if (!out.error) {
