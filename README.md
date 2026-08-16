@@ -1,177 +1,99 @@
-# 💥 DEEPSLOP — PS5 WebKit Exploit Kit
+# 💥 DEEPSLOP — PS5 WebKit Exploit & Research Kit
 
-> 🔥 **WebKit RCE Dashboard** — أخر ما تدعمه نافذة WebKit على PS5 (FW 13.60)
+> 🚀 **Standalone On-Device WebKit RCE & Vulnerability Research Framework for PlayStation 5 (FW 13.60)**
 
-🚀 كيت استغلال متصفح WebKit لجهاز PS5 (مشروع بحثي على جهاز خاص بالمستخدم)، مبني على
-`slopkit-webkit-exploit-main` مع ترقيات جذرية:
-
-🖥️ **واجهة تحكم جديدة** · 🔬 **وضع PROBE** · 🎯 **ماسح أوفستس ذاتي** ·
-📡 **منارات BEACON** · 🛰️ **REPL loader** · 📦 **payloads على الجهاز
-
----
-
-## ⚠️ نطاق الدعم
-
-| 🎮 FW | نافذة WebKit RCE | Kernel exploit |
-|---|---|---|
-| **13.60** | ✅ **نعم — آخر نافذة** | ❌ لا (حتى 12.00 netctrl) |
-| 9.00 – 10.01 | ✅ | ✅ lapse (AIO) |
-| 4.03 – 12.00 | ✅ | ✅ netctrl (ucred) |
-
-> 📌 **الخلاصة**: على 13.60 يوجد **RCE فقط** (لا جيلبريك كامل). ملفات kernel
-> (`lapse-runtime.js`, `rop-worker.js`, `aioshellcode.js`) منقولة من slopkit2
-> للرجوع إليها فقط وهي **غير موصولة** بالمسار الرئيسي.
+[![Firmware](https://img.shields.io/badge/PS5%20FW-13.60%20%7C%2012.00%20%7C%2011.60-blue.svg)](#-firmware-support)
+[![Architecture](https://img.shields.io/badge/Mode-100%25%20Standalone%20On--Device-emerald.svg)](#-key-features)
+[![UI](https://img.shields.io/badge/UI-Modern%20Glassmorphic%20(<20KB)-purple.svg)](#-user-interface)
+[![License](https://img.shields.io/badge/License-Research%20Only-lightgrey.svg)](#)
 
 ---
 
-## 📁 الملفات
+## 🌟 Overview
 
-```
-deepslop/
-├── ds-research-core.js   🧠 محرك الأبحاث الأساسي (telemetry, benchmarks, payloads)
-├── research-dashboard.html 🖥️ Dashboard جديد (Glassmorphism) لتشغيل الحمولات
-├── exploit.js            🧬 سلسلة الاستغلال الكاملة (WebKit RCE + ماسح الأوفستس)
-├── remote.js             🛰️ WebSocket loader (REPL — يُحقن بعد RCE عبر مساحة _ds)
-├── ws_server.py          ⚙️ خادم REPL + معالجة تقارير البحث (منفذ 50000)
-├── research/payloads/    📦 31 حمولة بحثية مقسمة لـ 7 فئات مع `manifest.json`
-├── tools/compare.js      ⚖️ أداة مقارنة تقارير الأداء بين التحديثات
-├── offsets/              🗂️ offsets.json (23 FW)
-├── rop-worker.js         🧵 staging ROP عبر worker (غير موصول)
-├── host/                 🌐 أدوات استضافة DNS+HTTPS
-└── cat.jpg               🐱 أصل غير مستخدم (مرجعي)
-```
+**DEEPSLOP** is an advanced, standalone WebKit RCE and security research toolkit designed specifically for the PlayStation 5 (Prospero) browser environment. It enables arbitrary memory read/write, native syscall invocation, in-memory ELF64 parsing, POSIX shared memory auditing, and on-device module dumping without requiring any external PC servers.
+
+Live Deployment: [https://badrcoderman.github.io/deepslop/](https://badrcoderman.github.io/deepslop/)
 
 ---
 
-## 🔧 الإعداد المطلوب
+## 🎮 Firmware Support
 
-> 🎮 **الوضع الافتراضي: بدون PC نهائيًا** — الاستغلال + payloads كلها على الجهاز.
-> الـ PC اختياري (زر 📡 PC REMOTE في الواجهة) لتفعيل REPL عبر WebSocket، و`?pc=1`
-> يفعّل منارة socket في سلسلة COMMIT.
-
-1. **🏠 IP جهازك** (اختياري — للوضع البعيد فقط): عدّل `RCE_PC_IP` في
-   `exploit.js:119` + fallback في `remote.js:16`.
-2. **🔌 المنافذ** (للوضع البعيد فقط):
-   - `50000` — `ws_server.py` (REPL + `POST /inject`)
-   - `8080` — خادم HTTP ثابت يخدم `remote.js` و`offsets/`
-     (مثال: `python3 -m http.server 8080 --directory deepslop`).
-3. 🌐 رابط الاستغلال (مع أو بدون PC): `?go=1` يبدأ التشغيل تلقائيًا **بعد**
-   تحميل الأوفستس.
+| PS5 Firmware | WebKit Userland RCE | In-Memory Dynamic `dlsym` | Kernel Scope |
+|:---:|:---:|:---:|:---:|
+| **13.60** | ✅ **Active & Verified** | ✅ **Full ELF64 Table Parsing** | Sandbox Userland (`NKWebProcess`) |
+| **12.00** | ✅ **Active & Verified** | ✅ **Full ELF64 Table Parsing** | Sandbox Userland (`NKWebProcess`) |
+| **11.60** | ✅ **Active & Verified** | ✅ **Full ELF64 Table Parsing** | Sandbox Userland (`NKWebProcess`) |
+| **9.00 – 10.01** | ✅ **Supported** | ✅ **Full ELF64 Table Parsing** | Sandbox Userland + Lapse Hooks |
 
 ---
 
-## 🌍 النشر على GitHub Pages
+## ⚡ Key Features
 
-> 🎉 **مباشر الآن**: `https://badrcoderman.github.io/deepslop/`
-
-المستودع عام مع Pages مفعّلة من `main` — **الوضع الكامل يعمل من الاستضافة وحدها**:
-استغلال → RCE → إشعار → payloads محلية (NOTIFY / SYSCALLS / REPORT / COMMIT /
-محرر كود) — لا PC، لا خوادم:
-
-```
-🕹️ PS5 browser → https://badrcoderman.github.io/deepslop/?go=1&fw=13.60
-```
-
-🔌 **تفعيل PC REMOTE** (اختياري): زر 📡 في الواجهة يجلب `remote.js` من
-`http://<PC>:8080` (mixed-content: على WebKit القديم غالبًا مسموح؛ إن فشل
-`REMOTE-JS-FETCH-FAIL` استخدم خادم 8080 بترويسة CORS `*` أو النشر المحلي
-`http://<PC>:8080/` — same-origin كامل).
-
----
-
-## 🕹️ الاستخدام
-
-```
-# 💻 الطرفية 1 — الخادم
-python3 ws_server.py
-
-# 📨 الطرفية 2 — إرسال payload (بعد اتصال PS5)
-python3 send_payload.py payloads/helloworld.js
-python3 send_payload.py payloads/helloworld.js --host 192.168.1.50
-```
-
-### ⌨️ أوامر REPL في `ws_server.py`
-
-| الأمر | الوصف |
-|---|---|
-| `research list` | 📋 عرض الحمولات المتوفرة |
-| `research run <name>` | 🚀 تشغيل حمولة معينة |
-| `research run-all` | ⚡ تشغيل جميع الحمولات المتوفرة |
-| `research report` | 📄 سحب تقرير الأداء الشامل |
-| `research capabilities`| 🔍 عرض قدرات المتصفح |
-| `send <fichier.js>` | 📦 إرسال payload عادي |
-| `offsets` / `scan` | 🎯 تقرير الأوفستس المكتشفة |
-| `fire` | 💥 تشغيل `commitRce()` (crash renderer) |
-
-### 🎛️ واجهة الأبحاث (`research-dashboard.html`)
-
-تمت ترقية الواجهة إلى **Research Dashboard** متكاملة:
-- 📊 **Telemetry**: تعرض معلومات النظام وقدرات الذاكرة بشكل مباشر.
-- 🚀 **Payload Runner**: شبكة لتشغيل أي من الـ 31 حمولة بحثية.
-- ⚡ **Run All**: تشغيل السلسلة كاملة واستخراج تقرير JSON شامل.
-
-### 📦 الحمولات البحثية (31 Payload)
-
-الحمولات مقسمة إلى 7 فئات أساسية (تُدار عبر `manifest.json`):
-1. **Environment**: معلومات النظام، القدرات، دقة الساعة.
-2. **Memory**: سرعة الحجز، أداء الـ GC، إمكانيات ArrayBuffer.
-3. **WebKit**: كشف الـ JIT، أداء WebAssembly، قدرات DOM/Fetch.
-4. **Network**: سرعة HTTP، استجابة WebSocket.
-5. **Graphics**: أداء Canvas و WebGL و `requestAnimationFrame`.
-6. **Process**: سرعة المعالج الأساسية، زمن استجابة الـ Event Loop.
-7. **Stability**: فحص ثبات ثغرة structured-clone.
-
-### 🧪 اختبار الماسح (`tools/scan-test.js`)
-
-```
-node tools/scan-test.js
-```
-
-يبني libkernel dump اصطناعيًا لكل FW من الـ 23 مع getpid/close في أوفستات
-`offsets/offsets.json` + stubs إضافية وأفخاخ (رقم غير مشاهد / محاذاة خاطئة /
-عنوان خاطئ) ويركض **نفس** `kernel-stubs.js` الذي يستخدمه `exploit.js` —
-لا نسخة منفصلة. التزامن: غلاف `exploit.js` يستدعي الوحدة النقية، و Side
-effects (`deepslopStubs`/`mark`) تبقى في الغلاف.
+1. **Arbitrary Memory Read Primitive (`window.aimRead`)**:
+   - Re-aims the exploit's carrier vector (`rwView`) dynamically to read any arbitrary memory address across the entire 64-bit userland address space, bypassing previous 8KB arena constraints safely.
+2. **Dynamic In-Memory Symbol Resolver (`_ds.dlsym` / `window.resolveSymbol`)**:
+   - Parses mapped ELF64 headers (`PT_DYNAMIC`, `DT_SYMTAB`, `DT_STRTAB`) directly from memory to resolve function pointers and Sony NIDs on the fly without hardcoded offset databases.
+3. **Web Audio WakeLock Engine**:
+   - Inaudible 1Hz `AudioContext` oscillator prevents PS5 WebKit tab freezing, sleep mode, and CPU throttling during long payload runs.
+4. **Crash-Safe Forensic Recorder**:
+   - Tracks execution milestones in `localStorage`. If an unexpected crash or tab reload occurs, a forensic banner reports exactly which stage failed.
+5. **Interactive In-Browser Hex Inspector & Dump Exporter**:
+   - Real-time address inspection with Quick-Jump targets (`libkernel_web`, `WebKit Base`, `Arena Backing`) and one-click binary `.bin` export.
+6. **Zero-Allocation OOM Protections**:
+   - Memory scanning loops reuse pre-allocated buffer caches (`scanChunk`), eliminating garbage collector (GC) spikes and tab crashes.
+7. **100% Standalone On-Device**:
+   - All PC dependencies removed. Payloads execute, display results, and trigger browser downloads directly on the console.
 
 ---
 
-## 🧠 ميزانية الذاكرة (WebKit)
+## 📦 Built-In Payloads (16 Research Modules)
 
-| 📊 عنصر | 🟢 عادي |
-|---|---|
-| carrier (float64) | 9,000,000 خانة ≈ **72MB** |
-| سلسلة الأسر (captured string) | ≈ **144MB** |
-| drain (keep-alive) | 512 × 64KB |
-| slab 4MB | ✅ نعم |
-
-> ℹ️ استُبعد وضع LOW_MEM عمدًا — الهدف PS5 فقط (لا قيد ذاكرة). القيم ثابتة
-> على الأقصى لموثوقية الـ spray.
-
----
-
-## 📜 سجل التغييرات
-
-| الإصدار | التاريخ | أبرز ما فيه |
-|---|---|---|
-| 🔬 **v2.0.0** | 2026-08-11 | محرك أبحاث جديد (Research Framework) + واجهة Dashboard محدثة + 31 حمولة بحثية + أداة compare.js. |
-| 📚 **v1.1.0** | 2026-08-10 | تحليل 8 مستودعات قديمة + دمج المراجع: `research/` (فئات ثغرات WebKit: angler · dfg · poc · maxu + عائلة structured-clone: jordy · userland_only) + `host/` (أدوات DNS/HTTPS spoof) |
-| 🩹 **v1.0.1** | 2026-08-10 | مراجعة كاملة لكل ملف + إصلاح 9 أخطاء (أهمها `carrierSlots` وسباق `?go=1`) + حُرّاس FW + تحسينات خادم/واجهة |
-| 🚀 **v1.0.0** | — | الإطلاق الأولي: Dashboard، PROBE mode، ماسح أوفستس ذاتي، LOW_MEM، BEACON، REPL |
-
-📄 التفاصيل الكاملة في **[CHANGELOG.md](./CHANGELOG.md)**
-
-## 🛡️ الأمان والحدود
-
-- 🎓 للاستخدام البحثي على أجهزة تملكها فقط. الكيت يعدّل ذاكرة عملية المتصفح وقد
-  يسبب أعطالًا — اختبر في بيئة معزولة.
-- 🗑️ استبعاد ملفات kernel عن قصد: `netctrl/lapse/elfldr/kexp` (معطَّلة أو خارج
-  نطاق 13.60) — راجع الكيتات الأصلية في `../slopkit2` إذا احتجت إليها.
+| Payload File | Name | Description |
+|:---|:---|:---|
+| `syscore_connect_probe.js` | **SceSysCore Ipmi Probe** | Probes kernel IPC transport (`syscall 0x26e ipmimgr_call`) & reachability (F-021/F-022) |
+| `sprx_dumper2.js` | **Streaming Dumper (v2)** | Memory-frugal ELF-aware streaming dumper with chunked output |
+| `sprx_dumper.js` | **SPRX Direct Dumper** | Dumps mapped modules (`libkernel_web`, `libSceAvPlayer`) to browser downloads via Blob |
+| `fsprobe.js` | **FS & Module Probe** | Audits sandbox filesystem permissions & dumps `libkernel_web` ELF header to Hex Viewer |
+| `shm_probe.js` | **Shared Memory Probe** | Tests POSIX shared memory descriptors (`/VideoParserThumbnail`, `/VideoParserTimecode`) |
+| `sysinfo.js` | **System Telemetry** | Reads PID, TID, pipe file descriptors, and verified syscall stubs |
+| `avplayer_test.js` | **AvPlayer Demuxer** | Tests in-process MP4 sample table allocation bounds and atom parsing |
+| `ipmi_fuzzer.js` | **IPMI Handler Fuzzer** | Fuzzes `libSceIpmi` client sessions and method dispatchers |
+| `mem_canary_probe.js` | **Heap Canary Probe** | Validates heap integrity and memory canary layouts |
+| `sysmodule_internal_probe.js` | **Sysmodule Loader** | Probes internal module loading interfaces |
+| `xml_test.js` | **XML Decoder Test** | Tests in-memory XML entity decoder buffer limits |
+| `api_return_checker.js` | **Syscall Matrix** | Systematically tests syscall return codes and sandbox restrictions |
+| `deepslop_info.js` | **DeepSlop RCE Report** | Generates detailed telemetry report of base addresses and memory layout |
+| `notification.js` | **OS Notification** | Sends customizable on-screen pop-up notification via `/dev/notification0` |
+| `helloworld.js` | **Hello World** | Basic RCE verification self-test |
+| `telemetry.js` | **Telemetry Logger** | Captures execution timings and diagnostic events |
 
 ---
 
-## 📚 المصادر
+## 🖥️ User Interface
 
-- `slopkit-main`, `slopkit-webkit-exploit-main`, `slopkit2` — الكيتات الأصلية
-- [WebKit/WebKit](https://github.com/WebKit/WebKit) — مرجع دراسة JSC (تتبع
-  الرقع الأمنية)
-- 🌐 **الموقع**: [https://badrcoderman.github.io/deepslop/](https://badrcoderman.github.io/deepslop/)
+The UI is built with a lightweight (~18KB) obsidian dark glassmorphism design optimized for PS5 rendering:
+- **Status Banner**: Real-time state indicators (`ARMED`, `RUNNING`, `RCE ACTIVE`).
+- **Hero Controls**: Quick `▶ RUN (Full RCE)` (OOM-safe by default) and `🔍 PROBE (Scan Offsets)`.
+- **Pinned Payloads Grid**: 8 one-click quick-action cards for top research modules.
+- **Universal Payload Injector**: Dropdown selector supporting all 16 payloads with instant injection.
+- **Hex Inspector**: Live memory viewer with ASCII decoding and raw binary download button.
+- **Live Terminal Console**: Color-coded, auto-scrolling execution log.
+
+---
+
+## 🕹️ Quick Start
+
+1. Open the PS5 Internet Browser or User's Guide.
+2. Navigate to:
+   ```text
+   https://badrcoderman.github.io/deepslop/
+   ```
+3. Click **`▶ RUN (Full RCE)`** to initialize the exploit chain.
+4. Once the notification **`PS5 OK`** appears, select any payload or inspect memory in the Hex Viewer!
+
+---
+
+## 📜 Disclaimer & Research Scope
+
+This software is strictly for security research, vulnerability analysis, and educational purposes on hardware owned by the user. No DRM circumvention, piracy tools, or destructive exploits are contained within this repository.

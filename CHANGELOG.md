@@ -1,212 +1,55 @@
 # 📜 سجل التغييرات (Changelog)
 
-> تنسيق [Keep a Changelog](https://keepachangelog.com/) — كل ما هو قابل للتغيير
-> موثّق هنا، والـ README يعرض ملخصًا سريعًا فقط.
+> تنسيق [Keep a Changelog](https://keepachangelog.com/) — جميع التحديثات والترقيات موثقة هنا بالتفصيل.
+
+---
+
+## ⚡ v3.1.0 — Arbitrary Read Primitive & Streaming Dumper (2026-08-17)
+
+- **`window.aimRead(addr, len)` (ميزة جوهرية)**:
+  - إضافة دالة قراءة حقيقية لأي عنوان في الذاكرة عبر إعادة توجيه الـ carrier (`aimCarrier`) والنسخ بأمان داخل كتلة `finally`.
+  - تجاوز قيد الـ 8KB Arena القديم الذي كان يرجع أصفاراً صامتة عند القراءة خارج النطاق.
+- **`payloads/sprx_dumper2.js` (جديد)**:
+  - دمج الدامبر المتدفق فائق الخفة الذي يقرأ ترويسة الـ ELF لمعرفة حجم الموديول الفعلي من `PT_LOADs` ويبث البيانات على دفعات 2KB عبر Beacons لتجنب أي ضغط على الذاكرة.
+- **ترقية `payloads/sprx_dumper.js`**:
+  - تحديثه ليستخدم `aimRead` لقراءة موديول `libkernel_web` على دفعات 4KB وحفظه مباشرة لملفات التحميل بالمتصفح.
+- **إصلاح `payloads/syscore_connect_probe.js`**:
+  - تحويل مسح توقيعات الـ stubs إلى `aimRead` لضمان قراءة نداءات `ipmimgr_call` (0x26e) و `dlsym` (0x24e) الحقيقية من الذاكرة بدلاً من مسح الأصفار.
+- **المحاقن الشامل للحمولات (Universal Payload Injector)**:
+  - تحديث قائمة الحمولات في `index.html` لتشمل جميع الـ 16 حمولة بحثية مع إمكانية الحقن المباشر.
+
+---
+
+## 🛡️ v3.0.0 — Standalone Modern Redesign & OOM Mitigations (2026-08-16)
+
+- **تصميم Glassmorphic عصري وخفيف (`index.html`)**:
+  - إعادة بناء الواجهة بالكامل بتصميم داكن فاخر (Obsidian `#080c14` مع حواف شفافة وألوان تركواز/زمردية) بحجم أقل من 20KB وبدون أي خطوط خارجية (Zero WebFonts) للحفاظ على كفاءة الذاكرة.
+- **حل مشكلة الـ OOM (Fast OOM-Safe Mode)**:
+  - ضبط زر `RUN` ليمرر `scan=0` افتراضياً، مما يعني استخدام الإزاحات المعتمدة لـ FW 13.60 مباشرة في 0.1 ثانية وبدون استنزاف للذاكرة.
+  - إلغاء حجز المصفوفات المتكررة في حلقات الفحص (`scanChunk` buffer reuse).
+  - إضافة زر اختيار `[ ] Auto-scan offsets` في الواجهة لتفعيل الفحص يدوياً عند الرغبة.
+- **محرك `Audio WakeLock` لمنع خمول المتصفح**:
+  - دمج مذبذب صوتي صامت (`1Hz Inaudible Oscillator`) يمنع نظام PS5 من تجميد تبويب المتصفح أو خفض طاقة المعالج أثناء الفحص.
+- **محلل الرموز الديناميكي في الذاكرة (`_ds.dlsym` / `window.resolveSymbol`)**:
+  - قراءة ترويسات `ELF64` ومصفوفات `PT_DYNAMIC`, `DT_SYMTAB`, `DT_STRTAB` مباشرة من الذاكرة لحل عناوين الدوال ورموز Sony NIDs ديناميكياً بدون جداول أوفستس صلبة.
+- **مفتش الذاكرة التفاعلي (In-Browser Hex Inspector)**:
+  - فحص الذاكرة الحية بأي عنوان مع إمكانية القفز السريع لقواعد `libkernel_web` و `WebKit` و `Arena`، وتنزيل تفريغ ثنائي مباشر بنقرة واحدة (`Download Dump`).
+- **مسجل الأخطاء والإنقاذ الجنائي (Crash-Safe Forensic Recorder)**:
+  - حفظ مراحل التنفيذ في `localStorage` لعرض تنبيه جنائي في حال حدوث إعادة تشغيل مفاجئة أو كراش.
+- **استقلالية تامة (100% Standalone On-Device)**:
+  - حذف جميع خوادم وملفات الـ PC (`ws_server.py`, `remote.js`, `host/`) ليعمل الكيت بالكامل وبشكل فوري عبر GitHub Pages.
 
 ---
 
 ## 🔬 v2.0.0 — DeepSlop Userland Research Framework (2026-08-11)
 
-- **Core Runtime (`ds-research-core.js`)**: محرك جديد لجمع القياسات (telemetry) والأداء (benchmarks)، واكتشاف القدرات (capabilities)، وإدارة حمولات البحث (payload manager).
-- **Research Payloads (31 حمولة بحثية)**: حمولات مقسمة إلى 7 أقسام (Environment, Memory, WebKit, Network, Graphics, Process, Stability) تعمل كـ IIFEs معتمدة على `manifest.json`.
-- **Dashboard (`research-dashboard.html`)**: واجهة بتصميم Glassmorphism تعرض القدرات وتشغل الحمولات (فردي أو الكل).
-- **أدوات الـ PC**: 
-  - إضافة أوامر `research` (`list/run/run-all/report/capabilities`) في `ws_server.py`.
-  - أداة `tools/compare.js` لمقارنة تقارير JSON واستخراج الفروقات بين إصدارات الـ FW.
-- **إصلاحات**: مساحة `window._ds` في `remote.js` وإصلاح (closure bug) في `index.html`.
-
-## 🧪 v2.0.0-rc1 — scanKernelStubs أصبح وحدة قابلة للاختبار + أول اختبار تنفيذي (2026-08-10)
-
-- **`kernel-stubs.js` (جديد)**: الماسح النقي لنمط stubs الكيرنل — بلا DOM ولا
-  آثار جانبية. `exploit.js` يستدعيه الآن (نفس السلوك تمامًا: نافذة ±0x20000،
-  محاذاة +0/+1 mod 16، cross-verify عبر gpe/cle، side effects `deepslopStubs`
-  و `mark` تبقى في الغلاف). أُزيلت `STUB_PATTERNS` المكررة من exploit.js.
-- **`tools/scan-test.js` (جديد)**: أول تشغيل **فعلي** لمنطق المسح — يبني
-  libkernel dump اصطناعيًا لكل FW من الـ 23 (09.00→13.60) مع getpid/close
-  مزروعين في أوفستات offsets.json + stubs إضافية (pipe/unlink/thr_self) +
-  أفخاخ (رقم غير مشاهد، محاذاة خاطئة، عنوان getpid خاطئ) ويتحقق أن الماسح
-  يجد المزروع ويقبل الأفخاخ — كلها تجتاز. + اختباران سلبيان (كيرنل فارغ →
-  verified=false، قراءة معطوبة → error). التشغيل: `node tools/scan-test.js`
-- **نتيجة الفحص**: فجوة gpe→cle ≤ نافذة المسح في كل FW — cross-verify ممكن
-  لكل الأجهزة المدرجة (لو تجاوزت أي FW النافذة لفشل verified تلقائيًا).
-- `injectExploit` يحمّل `kernel-stubs.js` قبل `exploit.js`.
-
-## 🚀 v1.2.1 — إحياء الـ payloads الميتة + إصلاح Promise (2026-08-10)
-
-- **أزرار جديدة في الشبكة**: 👋 HELLO WORLD (`payloads/helloworld.js` — self-test)
-  و 📊 DEEPSLOP INFO (`payloads/deepslop_info.js` — تقرير bases/scan/mem)
-  — الملفان كانا موجودين على القرص بلا أي زر يشغّلهما.
-- **إصلاح `runPayloadFile`**: الـ payloads كلها async IIFE — كانت `(0,eval)`
-  ترجع Promise فتبقى النتيجة `[object Promise]` ورفض داخلي يُبتلع بصمت
-  (الزر يبقى spin للأبد). الآن تُنتظر الـ Promises: القيمة الحقيقية تظهر في
-  السجل + `payloadResult`، والرفض يوقف الـ spin ويضع fail مع الرسالة.
-
-## 🚀 v1.1.2 — سلسلة COMMIT بدون PC افتراضيًا + منارة اختيارية (2026-08-10)
-
-- **`commitRce` أصبح بلا socket افتراضيًا**: السلسلة = إشعار + crash فقط،
-  مكتفية ذاتيًا تمامًا (لا اتصال PC ولا فشل صامت).
-- **`?pc=1`** يعيد جزء socket+connect+write+close إلى السلسلة (منارة
-  `PS5_RCE_OK` على منفذ 50000) — يُمرَّر عبر `autoRunNow`.
-- `index.html`: معامل `pc` يُنقل في إعادة البناء التلقائي (`EXPLOIT_PARAMS`).
-- README: توثيق `?pc=1` في قسم الوضع الافتراضي.
-
-## 🚀 v1.1.1 — PC remote أصبح اختياريًا (الافتراضي: بدون PC) (2026-08-10)
-
-- **الوضع الافتراضي الآن on-device بالكامل**: `loadAndCommitRce` لم يعد يجلب
-  `remote.js` تلقائيًا — لا PC ولا خوادم مطلوبة من GitHub Pages وحدها.
-- `window.enableRemotePC()` جديد — يجلب `remote.js` ويشغّل REPL عند الطلب
-  (مع حارس `remoteJsLoaded` ضد الـ double-load + تقرير نتائج {ok,error}).
-- زر 📡 **PC REMOTE** في قسم payloads الواجهة — يُفعّل البعيد من الجهاز.
-- إشعار RCE صار: "RCE READY - DEEPSLOP on-device".
-- كشف `window.RCE_PC_IP`/`RCE_PORT` للواجهة/payloads.
-- README أُعيد تأطيره: PC اختياري، Pages تعمل وحدها.
-
-## 📚 v1.1.0 — بحث 8 مستودعات قديمة + دمج المراجع (2026-08-10)
-
-حلّلنا بالكامل محتوى `/home/user/Documents/webp5/other&old-explolts/` (8 مستودعات)
-واستخرجنا المفيد للمشروع:
-
-### 🗂️ أُضيف `research/` (مراجع تحسين استغلال WebKit فقط — لا مستودعات كاملة)
-
-مسح كامل لـ 8 مستودعات (جولة ثانية شملت كل مجلدات zecoxao الـ ~60)، وبمعيار
-**«ما يحسّن استغلال WebKit على 13.60 فقط»** أُخذ 9 ملفات تقنية محددة (292KB):
-
-- فئات ثغرات WebKit/JSC بديلة/معزّزة: `angler` (CVE-2025-43529 + ANGLE oracle) ·
-  `poc` (تناقض DFG/FTL) · `dfg` · `genericTypedArray` · `get_by_id_with_this` ·
-  `bushigan` · `maxu` (CVE-2025-24201 UA tester).
-- عائلة سلسلتنا: `jordy` + `userland_only` (بوتستراب 616.1 بتحقق صارم — نمط
-  قابل للنقل لتحصين bootstrap لدينا).
-- حُذف: `kexp/` (kernel stage) · `int64.js`/`rop.js` · سلاسل ≤12.00 ·
-  مسربات 11.60 · مواد PS4 · وسائط/وثائق/مستودعات كاملة.
-
-### 🖥️ Payloads على الجهاز (بدون PC) — `index.html` فقط (لا مساس بـ exploit.js)
-
-لوحة **On-device payloads** في الواجهة تُفعَّل بعد الـ RCE (تعتمد فقط على الـ APIs
-المكشوفة أصلاً: `send_notification` · `deepslopInfo` · `deepslopScanOffsets` ·
-`deepslopMemEstimate` · `commitRce` · `mark`):
-
-- 🔔 NOTIFY — نص حر → إشعار PS5 (natural trampoline، بدون crash).
-- ℹ️ REPORT — تفريغ info + scan + ميزانية الذاكرة في السجل.
-- 💥 COMMIT RCE — تشغيل الـ ROP chain يدويًا (إشعار + crash) — تذكير: بعد
-  commit أو crash تحتاج reload (الـ spray يستنزف ذاكرة الصندوق — سلوك أصلي).
-- ⚡ RUN PAYLOAD — `(0, eval)` لأي كود JS في صندوق المتصفح (R/W عبر
-  `window.rwView`/`scratchWords`/`kernelBase`…) + زر تحميل
-  `payloads/notification.js` من نفس الأصل.
-- 🗑️ **إزالة LOW_MEM نهائيًا** (استبعاد الهدف PS5 فقط، لا قيد ذاكرة): حُذف
-  زر `MEM ▾` و`chipMem` و`?lowmem=1` و`escalateLowMem` وفرع slab-4MB المشروط —
-  القيم ثابتة على الأقصى (carrier 9M، drain 512، slab 4MB دائمًا). **لا تغيير
-  في أي منطق استغلال** — فقط حذف الفروع/الدوال المرتبطة بـ LOW_MEM.
-- 🛰️ **syscalls نظيفة داخل الصندوق** (بدون kernel exploit وبدون crash):
-  - `window.syscallClean(id, a0, a3)` في `initKernel()` — استدعاء stubs libkernel
-    عبر natural trampoline (المسار النظيف الذي يعود لـ JS): يصلح للـ syscalls
-    بمعامل واحد (rdi) + الرابع (rcx)، والنتائج تُلتقط عبر مؤشرات إلى arena
-    (لأن rax غير قابل للقراءة في هذا المسار).
-  - `window.syscallDemo()` — بطارية: `pipe` ×2 (يكتب fd حقيقيين = إثبات تنفيذ
-    syscall) + `close` — على libkernel 13.60 (الأوفستس مثبتة: S_PIPE 0x1b4c1،
-    S_CLOSE 0x1b7b1 — نفس قيم buildRceChain العاملة).
-  - زر 🛰️ TEST SYSCALLS في الواجهة يعرض النتائج في السجل.
-  - ملاحظة: `thr_self`/`sched_yield` بلا stubs في الجدول؛ والـ syscalls كاملة
-    المعاملات (write/socket/open) تعمل عبر سلسلة ROP بنمط buildRceChain
-    (الموجودة أصلاً وتثبت ذلك على 13.60).
-
-### 🌐 أُضيف `host/` (أدوات استضافة إيصال الحمولة، منقاة)
-
-- `fakedns.py` + `dns.conf` + `host.py` + `localhost.pem` + `dumpserver.py`
-  (من PS5-UMTX) — خادم DNS MITM يحوّل `manuals.playstation.net` إلى جهازك +
-  HTTPS appcache.
-- `appcache_manifest_generator.py` (من zecoxao.github.io) — توليد `cache.appcache`.
-- `log_server.py` (من Y2JB) — خادم HTTP :8080 لاستقبال السجلات (log write-back مع
-  CORS).
-- `host/README.md` — خطوات التشغيل والتحذيرات (لا تشغيل إلا على شبكة الاختبار).
-
-### ✅ تحقق
-
-`node --check` سليم · `python3 -m py_compile host/*.py` · فحص JSON · مراجعة
-ملفات النسخ (لا ملفات ثنائية كبيرة في research غير المتوقعة).
+- **Core Runtime (`ds-research-core.js`)**: محرك لجمع القياسات (telemetry) والأداء (benchmarks)، واكتشاف القدرات (capabilities)، وإدارة حمولات البحث.
+- **Research Payloads (31 حمولة بحثية)**: حمولات مقسمة إلى 7 أقسام تعمل كـ IIFEs معتمدة على `manifest.json`.
+- **Dashboard (`research-dashboard.html`)**: واجهة تعرض القدرات وتشغل الحمولات.
 
 ---
 
-## 🩹 v1.0.1 — مراجعة كاملة + إصلاحات (2026-08-10)
+## 🧪 v2.0.0-rc1 — scanKernelStubs أصبح وحدة قابلة للاختبار (2026-08-10)
 
-فحص كل ملف سطرًا بسطر (دوال الاستغلال، الواجهة، الخادم، payloads، الأوفستس)
-وتثبيت مهارات البحث: `webkit-jsc-exploit-research` (مخصصة) +
-`performing-binary-exploitation-analysis` + `performing-fuzzing-with-aflplusplus`.
-
-### 🐛 أخطاء أُصلحت — `exploit.js`
-
-- 🔴 **HIGH** `carrierSlots` غير معرَّف (ReferenceError مُبتلَع) في
-  `exposeDeepslopGlobals` و`deepslopMemEstimate` — كان يمنع
-  `window.deepslopInfo` بالكامل → أُصلح إلى `CARRIER_SLOTS`.
-- 🟠 **MED** `readTrampolineBytes` كان يقرأ 10 بايت ويقارنها بسلسلة 17 بايت —
-  يعرض "(mismatch)" دائمًا → الحلقة الآن `i < 17`.
-- 🟡 **LOW** `navigator.userAgent` غير محروس عند الإقلاع (يفسد كل شيء في Node).
-- 🟡 **LOW** `requestAnimationFrame` خارج try/catch → حارس + بديل `setTimeout`.
-- 🟡 **LOW** فحص GOT "read-twice" كان يقرأ من نفس التوجيه (صحيح دائمًا) →
-  `aimCarrier` يعاد قبل كل قراءة ثانية.
-
-### ✨ تحسينات — `exploit.js`
-
-- `deepslopScan` يُصفَّر في `resetAttemptState` (لا فحص قديم بين المحاولات).
-- تنظيف كامل لذاكرة probe (`capturedString/capturedWords/keepAlive/...`).
-- `initKernel()` و`sendNotifNatural()` داخل try/catch مع `mark` بدل الفشل الصامت.
-- `window.commitRce` أصبح مكشوفًا (عقد REPL موثوق بدل الاعتماد على eval المباشر).
-- نهاية نافذة الفحص `endRva` مشبوكة بـ `WEBKIT_RELRO_END` (لا قراءة خارج RELRO).
-- `fetch` بلا `cache:"no-store"` (غير موثوق على WebKit القديم) → cache-busting
-  بـ `?v=REVISION` في الـ URL.
-- إزالة سجل `RW-HEADER-HEX` المكرر؛ شعار `offline-verified-fw` أصبح ديناميكيًا
-  من `FW_LABEL`.
-
-### 🐛 أخطاء أُصلحت — `index.html`
-
-- 🔴 **HIGH** سباق `?go=1`: كان التشغيل التلقائي يسبق جلب الأوفستس (تسرب أوفستس
-  11.60 افتراضية لأي FW) → `autoRunNow()` يُستدعى بعد انتهاء الجلب في كل المسارات.
-- 🟠 **MED** زرا RUN/PROBE يبقيان معطلين بعد النجاح → يُعاد تفعيلهما في `ok`.
-- 🟡 **MED-LOW** فرع "auto-retry" الميت (يُقيَّم بعد التعيين دائمًا) → فحص قبل
-  التعيين برسالة صادقة "reload the page to run again".
-- 🟡 **LOW** رفض `navigator.clipboard` غير مُلتقَط → `.then/.catch` + فحص الوجود.
-- ✅ إضافة العناصر المخفية `#cap`/`#cat`/`#scr` (كانت `setCaption/catState/screenLine`
-  تفشل بصمت على الصفحة الحقيقية) + favicon (`data:,`).
-
-### 🛠️ إصلاحات — الخادم/العميل
-
-- `ws_server.py`: مراقب انقطاع (watcher) يعمل حتى عندما يكون REPL محجوبًا في
-  `input()`؛ رفض PS5 ثانية برسالة close؛ معالجة `ready` المتأخر؛ استهلاك منارة
-  ROP (`PS5_RCE_OK` بدل إغلاق صامت)؛ تحقق `isinstance(msg, dict)` في `/inject`؛
-  توثيق خادم 8080 في الرأس.
-- `remote.js`: `resolve`/`mem` يرسلان `status:"error"` عند الفشل الحقيقي (كان
-  "ok" زائفًا)؛ حذف متغير `kb` الميت.
-- `send_payload.py`: خيارات `--host`/`--port` (+ متغير بيئة `PS5_SERVER`).
-- `payloads/deepslop_info.js`: `?? "none"` بدل سلسلة `"undefined"`.
-- 🛡️ **حُرّاس FW** في ملفات kernel: `lapse-runtime.js` يرفض أي FW خارج 9.00–10.01
-  برسالة نظيفة؛ `rop-worker.js` يرفض أي FW غير 10.00 قبل أي قراءة من الخيط
-  القاتل (walk قبل self-checks كان يقرأ عنوانًا غير معيّن)؛ ثابت
-  `LK_SYSCALL_WRAPPER` باسمه + تعليق توثيقي للخلاف مع lapse-offsets.
-- `rop-worker.js`: تعطيل `W.batchBuf` عند `allocReset()` (فساد صامت للسلسلة)؛
-  حارس `W.worker` في `ping()` + `worker.onerror`؛ مهلة جدار زمنية 10s لـ fireSync.
-- `aioshellcode.js`: عنوان بارز يوضح أنه كود قديم غير موصول بمراجع مفقودة.
-- 🧹 حذف `__pycache__/` + إضافة `.gitignore`.
-
-### ✅ التحقق
-
-`node --check` على كل ملفات JS · `py_compile` · صلاحية JSON · اختبارات تحميل
-بمحاكاة DOM (armed=0/1 + probe/scan/lowmem) · اختبار حي لـ `POST /inject` (رفض
-جسم غير-كائن) · أعراض المنافذ متناسقة (50000/8080).
-
----
-
-## 🚀 v1.0.0 — الإطلاق الأولي
-
-- بناء `deepslop` من `slopkit-webkit-exploit-main` + أجزاء من `slopkit2`
-  (rop-worker / lapse-runtime).
-- واجهة Dashboard جديدة (RUN / PROBE / LOW_MEM / BEACON / sysinfo / scaninfo /
-  meminfo) مع اكتشاف تلقائي لـ FW من UA.
-- وضع PROBE: تشغيل السلسلة حتى R/W + تسريب القواعد + فحص الأوفستس ثم التوقف
-  (لا commit، لا notification).
-- ماسح أوفستس ذاتي (self-porting): `scanWindowFor` / `readTrampolineBytes` /
-  `scanAndVerifyOffsets` داخل `loadHistoryCritical` مع إعادة توجيه `rwView`.
-- وضع LOW_MEM: carrier 4.5M + drain 128 + تخطي slab 4MB + تصعيد OOM تلقائي
-  (`escalateLowMem`).
-- منارات BEACON عبر XHR متزامن (`/log/<msg>`).
-- REPL محسّن: أوامر `offsets` / `scan` / `resolve` / `mem` / `notify` / `fire`.
-- `offsets.json` بجدول 23 FW + `lapse-offsets.json`.
-- استبعاد ملفات kernel عن قصد (netctrl / lapse / elfldr / kexp).
+- **`kernel-stubs.js`**: الماسح النقي لنمط stubs الكيرنل — بلا DOM ولا آثار جانبية.
+- **`tools/scan-test.js`**: اختبار تنفيذي لمنطق المسح عبر محاكاة 23 إصدار FW.
