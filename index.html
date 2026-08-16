@@ -336,7 +336,10 @@
       <div class="brand-logo">DEEPSLOP</div>
       <div class="brand-ver">Standalone 13.60</div>
     </div>
-    <div class="badge-fw" id="fwBadge">FW --.--</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="badge-fw" id="wakeLockBadge" style="cursor:pointer;color:var(--emerald);border-color:rgba(16,185,129,0.3)" title="Click to toggle WakeLock">⚡ WakeLock: ON</div>
+      <div class="badge-fw" id="fwBadge">FW --.--</div>
+    </div>
   </header>
 
   <!-- Live Status Hero Banner -->
@@ -467,6 +470,72 @@ function addLog(msg) {
   l.scrollTop = l.scrollHeight;
 }
 window.addLog = addLog;
+
+// ── Web Audio WakeLock Engine (Prevents PS5 WebKit Sleep & CPU Throttling) ──
+let audioCtx = null;
+let wakeLockActive = false;
+
+function initWakeLock() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return false;
+    
+    if (!audioCtx) {
+      audioCtx = new AudioContext();
+    }
+    
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+    
+    // Create an inaudible 1Hz silent oscillator
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.0001; // Virtually silent
+    osc.frequency.value = 1;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    
+    wakeLockActive = true;
+    $("wakeLockBadge").textContent = "⚡ WakeLock: ON";
+    $("wakeLockBadge").style.color = "var(--emerald)";
+    $("wakeLockBadge").style.borderColor = "rgba(16, 185, 129, 0.4)";
+    return true;
+  } catch(e) {
+    wakeLockActive = false;
+    $("wakeLockBadge").textContent = "⚡ WakeLock: OFF";
+    $("wakeLockBadge").style.color = "var(--text-muted)";
+    $("wakeLockBadge").style.borderColor = "var(--card-border)";
+    return false;
+  }
+}
+
+function toggleWakeLock() {
+  if (wakeLockActive && audioCtx) {
+    try {
+      audioCtx.close();
+      audioCtx = null;
+      wakeLockActive = false;
+      $("wakeLockBadge").textContent = "⚡ WakeLock: OFF";
+      $("wakeLockBadge").style.color = "var(--text-muted)";
+      $("wakeLockBadge").style.borderColor = "var(--card-border)";
+      addLog("[INFO] WakeLock disabled");
+    } catch(e) {}
+  } else {
+    if (initWakeLock()) {
+      addLog("[OK] Audio WakeLock engaged — PS5 tab throttling prevented");
+    }
+  }
+}
+
+$("wakeLockBadge").onclick = toggleWakeLock;
+
+// Enable WakeLock on first user interaction
+document.addEventListener("click", () => {
+  if (!wakeLockActive) initWakeLock();
+}, { once: true });
+
 
 window.addExploitStatus = function(text, cls) {
   const banner = $("status-banner");
