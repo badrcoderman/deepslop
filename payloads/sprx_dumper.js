@@ -67,6 +67,18 @@
         }
     }
 
+    //note: Filesystem open/read requires a verified multi-argument syscall
+    //wrapper. The current diagnostic path has no trusted call5 implementation,
+    //so stop after the bounded aimRead dump instead of calling open with the
+    //wrong register layout.
+    if (!window.deepslopStubs || window.deepslopStubs.verified !== true
+        || typeof window.call5 !== "function") {
+        const message = `SPRX Dumper: ${dumpedCount} in-memory module(s); filesystem stage not run`;
+        log("[WARN] " + message);
+        try { k.notify("SPRX: filesystem stage not run"); } catch (e) {}
+        return message;
+    }
+
     // 2. Dump from filesystem if possible via syscall open / read
     const targets = [
         "/system/common/lib/libSceAvPlayer.sprx",

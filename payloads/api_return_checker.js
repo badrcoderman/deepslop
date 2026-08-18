@@ -42,46 +42,41 @@
 
         const results = [];
 
-        // 1. Audit syscall return status
-        if (typeof window.test_syscalls === "function") {
-            log("[*] Testing system call return paths...");
+        //note: Only call the validated getpid wrapper here. The former generic
+        //test_syscalls hook was absent on this build and could report simulated
+        //success without proving that any native endpoint was callable.
+        log("[*] Testing validated syscall return path...");
+        if (k && typeof k.pid === "function") {
             try {
-                const sysRes = window.test_syscalls();
-                const status = (sysRes && sysRes.ok) ? 0 : 0x80010016;
-                results.push({ target: "libkernel_syscalls", code: status, decoded: decodeSceCode(status) });
-                log(`[+] Syscall Return Audit: ${decodeSceCode(status)}`);
-            } catch (e) {
-                results.push({ target: "libkernel_syscalls", code: 0x8001000E, decoded: decodeSceCode(0x8001000E) });
+                const pid = k.pid();
+                const ok = !!(pid && pid.ok && Number.isInteger(Number(pid.ret)) && Number(pid.ret) >= 0);
+                results.push({ target: "getpid", status: ok ? "PASS" : "FAIL", value: ok ? Number(pid.ret) : null, error: ok ? null : pid && pid.error || "invalid result" });
+                log((ok ? "[OK]" : "[WARN]") + " getpid return path: " + (ok ? pid.ret : pid && pid.error || "invalid result"));
+            } catch (error) {
+                results.push({ target: "getpid", status: "FAIL", error: String(error && error.message || error) });
+                log("[WARN] getpid return path threw: " + (error && error.message || error));
             }
+        } else {
+            results.push({ target: "getpid", status: "UNAVAILABLE" });
+            log("[WARN] getpid return path unavailable");
         }
 
-        // 2. Audit XML parser boundary test return code
-        if (typeof window.call_native === "function" && info.naturalTrampolineAddress) {
-            log("[*] Probing libSceXml return code dispatch...");
-            // Call with dummy null struct to check if it gracefully returns EINVAL (0x80010016)
-            try {
-                const xmlRet = window.call_native(Number(info.naturalTrampolineAddress), 0, 0);
-                results.push({ target: "libSceXml_boundary", code: xmlRet, decoded: decodeSceCode(xmlRet) });
-                log(`[+] libSceXml Dispatch Return: ${decodeSceCode(xmlRet)}`);
-            } catch (e) {
-                results.push({ target: "libSceXml_boundary", code: -1, decoded: "EXCEPTION_TRAPPED" });
-            }
-        }
+        // 2. Native dispatch probe — DISABLED (was crashing the console).
+        // naturalTrampolineAddress is the exploit's INTERNAL call gadget
+        // (mov rcx,[rdi+0xe0]; ... ; ret) — passing it to call_native as the
+        // "function" made it dereference rdi=0 => instant crash. Real native
+        // probes need an actual function address (NID-resolved) + call5.
+        log("[*] libSceXml native dispatch: SKIPPED (no real target address; trampoline misuse removed)");
 
-        // 3. Fallback / simulated check if not in full native mode
-        if (results.length === 0) {
-            log("[*] Running simulated API error mapping tests...");
-            results.push({ target: "SCE_OK_TEST", code: 0, decoded: decodeSceCode(0) });
-            results.push({ target: "SCE_EINVAL_TEST", code: 0x80010016, decoded: decodeSceCode(0x80010016) });
-            results.push({ target: "SCE_EFAULT_TEST", code: 0x8001000E, decoded: decodeSceCode(0x8001000E) });
-            results.push({ target: "SCE_XML_OOM_TEST", code: 0x80410102, decoded: decodeSceCode(0x80410102) });
-        }
-
-        const summary = `API_RETURN_CHECK: Audited ${results.length} endpoints [Status: ALL_RESOLVED]`;
-        log("[OK] " + summary);
+        const report = typeof window.runBaselineDiagnostics === "function"
+            ? window.runBaselineDiagnostics() : null;
+        const status = report && report.status === "PASS" && results.every((r) => r.status === "PASS")
+            ? "PASS" : "INCOMPLETE";
+        const summary = `API_RETURN_CHECK: ${status} ${JSON.stringify({ results, baseline: report })}`;
+        log((status === "PASS" ? "[OK] " : "[WARN] ") + summary);
 
         if (k && k.notify) {
-            try { k.notify("API_CHECK: Audit Complete"); } catch (e) {}
+            try { k.notify("API_CHECK: " + status); } catch (e) {}
         }
 
         return summary;

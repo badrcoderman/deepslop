@@ -15,6 +15,8 @@
 
         const CANARY_PATTERN_HEAD = 0xDEADBEEF;
         const CANARY_PATTERN_TAIL = 0xCAFEBABE;
+        const HEAD = BigInt(CANARY_PATTERN_HEAD);
+        const TAIL = BigInt(CANARY_PATTERN_TAIL);
         const BUFFER_SIZE = 0x100; // 256 bytes payload buffer
         const GUARD_SIZE  = 0x40;  // 64 bytes guard padding on each side
 
@@ -62,20 +64,21 @@
 
             for (let offset = 0; offset < GUARD_SIZE; offset += 4) {
                 const val = window.read32(Number(headGuardAddr) + offset);
-                if (val !== CANARY_PATTERN_HEAD) headCorrupt = true;
+                if (val !== HEAD) headCorrupt = true;
             }
 
             for (let offset = 0; offset < GUARD_SIZE; offset += 4) {
                 const val = window.read32(tailGuardAddr + offset);
-                if (val !== CANARY_PATTERN_TAIL) tailCorrupt = true;
+                if (val !== TAIL) tailCorrupt = true;
             }
 
             log(`[+] Pre-Check Status: Header Guard = ${headCorrupt ? "CORRUPTED" : "INTACT"}, Tail Guard = ${tailCorrupt ? "CORRUPTED" : "INTACT"}`);
 
-            const report = `CANARY_PROBE: Guards Armed [Head: ${window.toHex(headGuardAddr)}, Tail: ${window.toHex(tailGuardAddr)}]`;
-            log("[OK] " + report);
+            const intact = !headCorrupt && !tailCorrupt;
+            const report = `CANARY_PROBE: ${intact ? "PASS" : "FAIL"} [Head: ${window.toHex(headGuardAddr)}, Tail: ${window.toHex(tailGuardAddr)}]`;
+            log((intact ? "[OK] " : "[WARN] ") + report);
             if (k && k.notify) {
-                try { k.notify("CANARY: Guards Armed & Verified"); } catch (e) {}
+                try { k.notify("CANARY: " + (intact ? "PASS" : "FAIL")); } catch (e) {}
             }
             return report;
         }

@@ -494,8 +494,13 @@ const fwM = /(?:PlayStation 5\/|PlayStation 5\s+)(\d+)\.(\d+)/i.exec(ua);
 const detectedFw = fwM ? `${fwM[1].padStart(2,"0")}.${fwM[2].padStart(2,"0")}` : null;
 const params = new URLSearchParams(location.search);
 const fw = params.get("fw") || detectedFw || "13.60";
+//note: Every runtime asset carries this build identifier and a timestamp so a
+//cached exploit or payload cannot silently mix with the current diagnostics.
+const BUILD_ID = "diag-13.60-2";
+window.DEEPSLOP_BUILD_ID = BUILD_ID;
 
 $("fwBadge").textContent = `FW ${fw}`;
+addLog(`[INFO] DEEPSLOP build ${BUILD_ID}`);
 
 let entry = null, isRunning = false;
 
@@ -598,7 +603,7 @@ window.addExploitStatus = function(text, cls) {
 };
 
 // Load offsets table
-fetch("offsets/offsets.json?_=" + Date.now())
+fetch("offsets/offsets.json?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now())
   .then(r => r.json())
   .then(data => {
     entry = data[fw] || data["13.60"] || data["11.60"];
@@ -650,11 +655,12 @@ function startRun(mode) {
     q.set("scan", "0"); // OOM-SAFE mode (fast & zero memory pressure)
     addLog("[INFO] Starting exploit in fast OOM-safe mode (offsets.json)");
   }
+  q.set("build", BUILD_ID);
   
   window.EXPLOIT_PARAMS = q;
 
   const s = document.createElement("script");
-  s.src = "kernel-stubs.js?_=" + Date.now();
+  s.src = "kernel-stubs.js?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now();
   s.onload = () => {
     const expScript = document.createElement("script");
     expScript.src = "exploit.js?" + q.toString() + "&_=" + Date.now();
@@ -687,20 +693,32 @@ function runPayload(name) {
   resBox.style.display = "block";
   resBox.textContent = "Executing " + cleanName + "…";
   
-  fetch("payloads/" + cleanName + ".js?_=" + Date.now())
+  fetch("payloads/" + cleanName + ".js?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now())
     .then(r => r.text())
     .then(code => {
       try {
         const res = (0, eval)(code);
         if (res && res.then) {
-          res.then(v => { resBox.textContent = v || "Operation completed successfully"; });
+          res.then(v => { resBox.textContent = v || "Operation completed"; clearActionState(); })
+            .catch(e => {
+              addLog("[ERR] " + cleanName + ": " + (e && e.message));
+              resBox.textContent = "Error: " + (e && e.message);
+              clearActionState();
+            });
         } else {
-          resBox.textContent = res !== undefined ? String(res) : "Operation completed successfully";
+          resBox.textContent = res !== undefined ? String(res) : "Operation completed";
+          clearActionState();
         }
       } catch(e) {
-        addLog("[ERR] " + name + ": " + (e && e.message));
+        addLog("[ERR] " + cleanName + ": " + (e && e.message));
         resBox.textContent = "Error: " + (e && e.message);
+        clearActionState();
       }
+    })
+    .catch(e => {
+      addLog("[ERR] " + cleanName + ": payload load failed: " + (e && e.message));
+      resBox.textContent = "Load error: " + (e && e.message);
+      clearActionState();
     });
 }
 
@@ -799,19 +817,31 @@ $("btnReadMem").onclick = () => {
   const len = parseInt($("hexLen").value.trim(), 10) || 256;
   if (!str) return;
   const addr = str.startsWith("0x") ? parseInt(str, 16) : parseInt(str, 10);
-  if (window.readBytes) {
+  if (!Number.isSafeInteger(addr) || addr <= 0) {
+    addLog("[ERR] Read rejected: invalid address");
+    return;
+  }
+  if (!Number.isSafeInteger(len) || len < 1 || len > 0x1000) {
+    addLog("[ERR] Read rejected: length must be 1..0x1000");
+    return;
+  }
+  const memoryReader = window.aimRead || window.readBytes;
+  if (memoryReader) {
     try {
-      const b = window.readBytes(addr, len);
+      const b = memoryReader(addr, len);
       showHexViewer("Memory 0x" + addr.toString(16).toUpperCase(), b, addr);
+      addLog("[OK] Read " + b.length + " bytes from 0x" + addr.toString(16));
     } catch(e) { addLog("[ERR] Read failed: " + e.message); }
+  } else {
+    addLog("[WARN] No trusted memory reader available");
   }
 };
 
 $("btnTestSyscall").onclick = () => {
-  if (typeof window.syscallClean === "function" && window.SYSCALL) {
-    const r = window.syscallClean(window.SYSCALL.getpid, 0, 0);
-    addLog(`[OK] Syscall getpid() -> PID ${r && r.ret}`);
-  }
+  if (typeof window.runBaselineDiagnostics === "function") {
+    const report = window.runBaselineDiagnostics();
+    addLog("[INFO] Baseline verdict: " + report.status + " build=" + report.build);
+  } else addLog("[WARN] Baseline diagnostics unavailable; run exploit first");
 };
 </script>
 </body>

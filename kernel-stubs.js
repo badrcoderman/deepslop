@@ -25,10 +25,17 @@
     const SCAN_WINDOW = 0x20000; // bytes on each side of the getpid anchor
 
     function scanKernelStubs(opts) {
-        const out = { verified: false, addresses: {} };
+        const out = { verified: false, addresses: {}, scannedChunks: 0 };
         try {
             const kernelBase = Number(opts.kernelBase);
             const anchor = kernelBase + Number(opts.getpidExport);
+            //note: Reject malformed inputs before scanning. A false verification
+            //must produce an unavailable table, never a guessed syscall address.
+            if (!Number.isSafeInteger(kernelBase) || !Number.isSafeInteger(anchor)
+                || typeof opts.readChunk !== "function") {
+                out.error = "invalid scanner inputs";
+                return out;
+            }
             const windowStart = anchor - SCAN_WINDOW;
             const windowEnd = anchor + SCAN_WINDOW;
             const chunk = new Uint8Array(0x100);
@@ -39,6 +46,7 @@
 
             for (let addr = windowStart; addr <= windowEnd; addr += 0x100) {
                 const data = opts.readChunk(addr);
+                out.scannedChunks++;
                 if (!data || data.length < 0x100) continue;
                 for (let i = 0; i < 0x100; ++i)
                     chunk[i] = data[i];
@@ -59,6 +67,7 @@
 
             out.verified = byNr[0x14] === anchor
                 && byNr[0x06] === kernelBase + Number(opts.closeExport);
+            if (!out.verified) out.reason = "anchor-or-close-mismatch";
             for (const [name, nr] of STUB_PATTERNS) {
                 if (byNr[nr] !== undefined)
                     out.addresses[name] = byNr[nr];

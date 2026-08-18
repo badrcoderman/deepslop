@@ -8,21 +8,27 @@
     const info = window.deepslopInfo || {};
     out.push("FW " + (info.fw || "?"));
 
-    const pid = k.pid();
-    out.push("pid=" + (pid && pid.ok ? pid.ret : (pid && pid.error) || "err"));
+    //note: Each syscall is isolated so one unavailable stub cannot abort the
+    //remaining telemetry or turn an unavailable value into a fake success.
+    let pid;
+    try { pid = k.pid(); } catch (e) { pid = { error: String(e && e.message || e) }; }
+    out.push("pid=" + (pid && pid.ok ? String(pid.ret) : "unavailable:" + ((pid && pid.error) || "err")));
 
-    const pipe = k.pipe();
-    out.push("pipe=" + (pipe && pipe.ok ? "fds[" + pipe.fds.join("/") + "]" : (pipe && pipe.error) || "err"));
+    let pipe;
+    try { pipe = k.pipe(); } catch (e) { pipe = { error: String(e && e.message || e) }; }
+    out.push("pipe=" + (pipe && pipe.ok ? "fds[" + pipe.fds.join("/") + "]" : "unavailable:" + ((pipe && pipe.error) || "err")));
 
-    const tid = k.tid();
-    out.push("tid=" + (tid && tid.ok ? tid.tid : (tid && tid.error) || "n/a"));
+    let tid;
+    try { tid = k.tid(); } catch (e) { tid = { error: String(e && e.message || e) }; }
+    out.push("tid=" + (tid && tid.ok ? String(tid.tid) : "unavailable:" + ((tid && tid.error) || "n/a")));
 
-    const st = k.stubReport();
+    const st = typeof k.stubReport === "function" ? k.stubReport() : { stubScan: "unavailable", scanned: [] };
     out.push("stubs:" + st.stubScan + "(" + st.scanned.length + ")");
 
     const msg = "SYSINFO " + out.join(" · ");
-    if (window.addLog) window.addLog("[OK] " + msg);
+    const verdict = pid && pid.ok ? "PASS" : "INCOMPLETE";
+    if (window.addLog) window.addLog((verdict === "PASS" ? "[OK] " : "[WARN] ") + msg + " · verdict=" + verdict);
     try { k.notify("SYSINFO " + out.join(" ")); } catch (e) {}
 
-    return msg;
+    return msg + " · verdict=" + verdict;
 })()

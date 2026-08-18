@@ -91,11 +91,26 @@
             },
         });
         if (!out.error) {
-            window.deepslopStubs = out.verified ? out.addresses : null;
+            //note: Preserve verification metadata with the address map so an
+            //unverified scan cannot be mistaken for a usable stub table.
+            window.deepslopStubs = {
+                verified: out.verified === true,
+                addresses: out.verified ? out.addresses : {},
+                reason: out.reason || out.error || null,
+                scannedChunks: out.scannedChunks || 0,
+            };
             mark("SCAN-STUBS", out.verified
                 ? "ok-" + Object.keys(out.addresses).length
-                : "unverified-fallback-9.00");
+                : "unavailable-no-trusted-layout");
         } else {
+            //note: Never retain a verified table after a failed rescan; the
+            //next payload must see an unavailable state instead.
+            window.deepslopStubs = {
+                verified: false,
+                addresses: {},
+                reason: String(out.error).slice(0, 120),
+                scannedChunks: out.scannedChunks || 0,
+            };
             mark("SCAN-STUBS-ERR", String(out.error).slice(0, 80));
         }
         return out;

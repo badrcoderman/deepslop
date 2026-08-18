@@ -10,8 +10,13 @@
 
     log("[IPMI] ── starting IPMI IPC protocol fuzzer & audit ──");
 
+    //note: Do not label a local loop or missing hook as an IPC result. A real
+    //transport proof is required before any method vector is sent.
     if (!window.deepslopInfo || !window.ps5kern) {
-        log("[WARN] Exploit RCE environment not active — running in safe emulation mode");
+        const message = "IPMI Fuzz Result: NOT RUN (RCE environment unavailable)";
+        log("[WARN] " + message);
+        out(message);
+        return message;
     }
 
     // Known IPMI and AppContent NIDs
@@ -55,16 +60,16 @@
                 status = "EXCEPTION";
             }
         } else {
-            // Emulated dispatch verification
-            status = (tc.bufSize === 0xFFFFFFFC) ? "BLOCKED_GUARD" : "DISPATCH_ACCEPTED";
+            status = "NOT_RUN_NO_TRUSTED_IPMI_HOOK";
+            log("[INFO] Method " + tc.methodId + " not sent: no trusted IPMI client hook");
         }
 
         auditLog.push("M" + tc.methodId + ":" + status);
-        passedCases++;
+        if (status !== "NOT_RUN_NO_TRUSTED_IPMI_HOOK") passedCases++;
     });
 
-    const summary = "IPMI Fuzz Result (" + passedCases + "/" + FUZZ_CASES.length + " complete): " + auditLog.join(" | ");
-    log("[OK] IPMI fuzzing battery finished.");
+    const summary = "IPMI Fuzz Result (" + passedCases + "/" + FUZZ_CASES.length + " executed): " + auditLog.join(" | ");
+    log("[WARN] " + summary);
     out(summary);
     return summary;
 })();

@@ -7,6 +7,17 @@
 
     if (window.addLog) window.addLog("[SHM] Probing POSIX Shared Memory interfaces...");
 
+    //note: shm_open needs a trusted 3-argument syscall wrapper. The current
+    //clean dispatcher exposes only the validated two-argument path, so refusing
+    //to call it is safer than producing a misleading restricted/ENOENT result.
+    if (!window.deepslopStubs || window.deepslopStubs.verified !== true
+        || typeof window.call5 !== "function") {
+        const message = "SHM_PROBE: NOT RUN (trusted 3-argument syscall path unavailable)";
+        if (window.addLog) window.addLog("[WARN] " + message);
+        try { k.notify("SHM: not run"); } catch (e) {}
+        return message;
+    }
+
     const SC = window.SYSCALL || {};
     const O_RDWR = 0x0002;
     const O_CREAT = 0x0200;

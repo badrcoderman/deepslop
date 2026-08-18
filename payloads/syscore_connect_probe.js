@@ -93,26 +93,13 @@
     };
     const verdict = { getpid: "OK", ipmimgr_call: "not probed", dlsym: "not probed" };
 
-    if (found.ipmimgr_call) {
-        // register the found stub into the runtime stub map, then probe
-        try {
-            const r = window.syscallClean(0x26e, 0, 0);
-            verdict.ipmimgr_call = classify(r);
-            log("[SCP] stage2 ipmimgr_call(0,0): " + verdict.ipmimgr_call);
-        } catch (e) {
-            verdict.ipmimgr_call = "EXCEPTION(" + String(e && e.message).slice(0, 40) + ")";
-            log("[SCP] stage2 ipmimgr_call threw: " + verdict.ipmimgr_call);
-        }
-    }
-    if (found.dlsym) {
-        try {
-            const r = window.syscallClean(0x24e, 0, 0);
-            verdict.dlsym = classify(r);
-            log("[SCP] stage2 dlsym(0,0): " + verdict.dlsym);
-        } catch (e) {
-            verdict.dlsym = "EXCEPTION(" + String(e && e.message).slice(0, 40) + ")";
-        }
-    }
+    //note: A byte-pattern hit is not sufficient to call a new syscall. Until
+    //its firmware-specific ABI and argument mapping are independently verified,
+    //leave both transport probes explicitly unexecuted.
+    if (found.ipmimgr_call)
+        log("[SCP] stage2 ipmimgr_call: NOT RUN (stub hit lacks trusted ABI mapping)");
+    if (found.dlsym)
+        log("[SCP] stage2 dlsym: NOT RUN (stub hit lacks trusted ABI mapping)");
 
     // ---- Stage 3: libSceIpmi base availability ------------------------------
     const modHints = {};
@@ -122,16 +109,12 @@
         (Object.keys(modHints).length ? Object.keys(modHints).join(",") : "none"));
 
     // ---- Verdict -------------------------------------------------------------
-    const ipmiReachable = String(verdict.ipmimgr_call).startsWith("REACHABLE");
+    const ipmiReachable = false;
     const summary =
         "[SCP] VERDICT: ipmimgr syscall " +
         (verdict.ipmimgr_call === "not probed"
             ? "NOT PROBED (stub not found — widen scan or add anchor)"
-            : (ipmiReachable
-                ? "REACHABLE — kernel IPC transport callable from web process; "
-                  + "SceSysCore attack path (F-022) is transport-plausible. "
-                  + "Next: call5 upgrade + full client connect."
-                : "BLOCKED — " + verdict.ipmimgr_call));
+            : "NOT PROBED (stub found, but ABI mapping is not trusted)");
     log(summary);
     out("SCP: " + JSON.stringify(verdict));
     try { if (window.ps5kern.notify) window.ps5kern.notify(ipmiReachable ? "SCP: IPC syscall REACHABLE" : "SCP: see log"); } catch (_) {}
