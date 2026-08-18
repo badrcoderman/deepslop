@@ -496,7 +496,7 @@ const params = new URLSearchParams(location.search);
 const fw = params.get("fw") || detectedFw || "13.60";
 //note: Every runtime asset carries this build identifier and a timestamp so a
 //cached exploit or payload cannot silently mix with the current diagnostics.
-const BUILD_ID = "diag-13.60-2";
+const BUILD_ID = "diag-13.60-3";
 window.DEEPSLOP_BUILD_ID = BUILD_ID;
 
 $("fwBadge").textContent = `FW ${fw}`;
