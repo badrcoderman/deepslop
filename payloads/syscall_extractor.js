@@ -82,8 +82,10 @@
     //note: Scan in 4KB pages through the executable segment matching standard x86_64 FreeBSD/Prospero syscall trampolines:
     // [Pattern 1]: 48 C7 C0 <nr32> 49 89 CA 0F 05 C3
     // [Pattern 2]: B8 <nr32> 49 89 CA 0F 05 C3
-    for (let cur = textStart; cur < textStart + textLen; cur += CHUNK_SIZE) {
-        const scanLen = Math.min(CHUNK_SIZE, textStart + textLen - cur);
+    //note: Limit scan length to max 128KB to prevent OOM/GC timeouts while scanning kernel .text segment.
+    const maxScanLen = Math.min(textLen, 0x20000);
+    for (let cur = textStart; cur < textStart + maxScanLen; cur += CHUNK_SIZE) {
+        const scanLen = Math.min(CHUNK_SIZE, textStart + maxScanLen - cur);
         const page = window.aimRead(kb + cur, scanLen);
         if (!page) continue;
         scannedBytes += scanLen;

@@ -41,7 +41,8 @@
         log("[*] Dumping libkernel_web from memory (Base: " + window.toHex(info.kernelBase) + ")...");
         try {
             const readFn = window.aimRead || window.readBytes;
-            const dumpSize = 0x40000; // 256KB
+            //note: Use safe 64KB dump size for browser direct dump to avoid large JS heap allocations on memory-constrained console WebKit.
+            const dumpSize = 0x10000; // 64KB
             const kernelBytes = new Uint8Array(dumpSize);
             const chunkSize = 0x1000; // 4KB chunks
             

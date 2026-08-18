@@ -52,8 +52,10 @@
         const res = { label, baseAddr: hx(baseAddr), dynAddr: hx(dynAddr), dynSize, symbols: [] };
 
         if (dynAddr > 0) {
-            log(`[+] PT_DYNAMIC found @ offset ${hx(dynAddr)} (size: ${dynSize}B)`);
-            const dynTable = window.aimRead(baseAddr + dynAddr, Math.min(dynSize || 0x400, 0x1000));
+            //note: Handle relative offsets vs absolute virtual addresses in mapped ELF dynamic tables to prevent double-base addition.
+            const dynAddrActual = dynAddr >= baseAddr ? dynAddr : baseAddr + dynAddr;
+            log(`[+] PT_DYNAMIC found @ ${hx(dynAddrActual)} (size: ${dynSize}B)`);
+            const dynTable = window.aimRead(dynAddrActual, Math.min(dynSize || 0x400, 0x1000));
             if (dynTable) {
                 let symtab = 0, strtab = 0, strsz = 0;
                 const dDv = new DataView(dynTable.buffer);
@@ -67,9 +69,10 @@
                 }
 
                 if (symtab && strtab) {
-                    log(`[+] Symbol Table: symtab=${hx(symtab)} strtab=${hx(strtab)} strsz=${strsz}`);
+                    const strtabActual = strtab >= baseAddr ? strtab : baseAddr + strtab;
+                    log(`[+] Symbol Table: symtab=${hx(symtab)} strtab=${hx(strtabActual)} strsz=${strsz}`);
                     // Read strings
-                    const strBlob = window.aimRead(baseAddr + strtab, Math.min(strsz || 0x1000, 0x1000));
+                    const strBlob = window.aimRead(strtabActual, Math.min(strsz || 0x1000, 0x1000));
                     if (strBlob) {
                         let currentStr = "";
                         for (let i = 0; i < strBlob.length; i++) {
