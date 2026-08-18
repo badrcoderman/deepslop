@@ -54,7 +54,7 @@
             
             if (kernelBytes[0] === 0x7F && kernelBytes[1] === 0x45 && kernelBytes[2] === 0x4C && kernelBytes[3] === 0x46) {
                 log("[OK] Valid ELF64 header verified for libkernel_web");
-                const fname = `libkernel_web_FW${info.fw || "13.60"}_dump.sprx`;
+                const fname = `libkernel_web_sample_64KB.bin`;
                 if (downloadBytes(fname, kernelBytes)) {
                     log(`[OK] Saved ${fname} (${dumpSize / 1024} KB) to browser downloads!`);
                     dumpedCount++;

@@ -50,12 +50,12 @@
             avPlayerState = "In-Process Staging Ready (Video page: video-test.html)";
         }
 
-        const report = `AVPLAYER_PROBE: PASS [Atom: stts @ ${hx(atomBuf)}, Init: ${hx(initDataAddr)}, Status: ${avPlayerState}]`;
+        const report = `AVPLAYER_PROBE: STAGED [Atom: stts @ ${hx(atomBuf)}, Init: ${hx(initDataAddr)}, Status: ${avPlayerState}]`;
         log("[OK] " + report);
         out(report);
 
         if (k && k.notify) {
-            try { k.notify("AVPLAYER: In-Process Ready"); } catch (e) {}
+            try { k.notify("AVPLAYER: Staged"); } catch (e) {}
         }
 
         return report;

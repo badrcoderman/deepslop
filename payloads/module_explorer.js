@@ -106,7 +106,7 @@
         if (wMod) modules.push(wMod);
     }
 
-    const summary = `MODULE_EXPLORER: Cataloged ${modules.length} active SPRX modules (${modules.reduce((a,m)=>a+m.symbols.length, 0)} symbols indexed)`;
+    const summary = `MODULE_EXPLORER: Scanned ${modules.length} modules DT_STRTAB strings (NID hashing unresolved) (${modules.reduce((a,m)=>a+m.symbols.length, 0)} symbols indexed)`;
     log("[OK] " + summary);
     out(JSON.stringify(modules, null, 2));
 

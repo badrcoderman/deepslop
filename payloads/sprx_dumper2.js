@@ -82,8 +82,8 @@
             const len = Math.min(CHUNK, extent - off);
             const u8 = window.aimRead(base + off, len);
             if (!u8) { log("[DUMP2] aimRead failed @" + off.toString(16)); break; }
-            if (!(await beacon(name, off, u8))) break;
-            sent += len; chunks++;
+            const ok = await beacon(name, off, u8);
+            if (ok) { sent += len; chunks++; } else { log("[DUMP2] beacon delivery failed @" + off.toString(16)); break; }
             if ((chunks & 0xF) === 0) log("[DUMP2] " + sent + "/" + extent + " (" + chunks + " chunks)");
         }
         log("[DUMP2] DONE " + name + ": " + sent + " bytes in " + chunks + " chunks");

@@ -123,16 +123,16 @@
     }
 
     // Populate runtime stubs table
-    if (!window.deepslopStubs) window.deepslopStubs = { verified: true, addresses: {} };
-    window.deepslopStubs.verified = true;
+        //note: Only set deepslopStubs.verified to true if at least one valid syscall stub was located. Fails closed if scan found 0 stubs.
+    if (!window.deepslopStubs) window.deepslopStubs = { verified: false, addresses: {} };
+    window.deepslopStubs.verified = (count > 0);
     window.deepslopStubs.addresses = window.deepslopStubs.addresses || {};
     for (const nr of Object.keys(foundStubs)) {
         const item = foundStubs[nr];
         window.deepslopStubs.addresses[item.name] = item.addr;
     }
 
-    const count = Object.keys(foundStubs).length;
-    log(`[OK] Discovery complete: Found ${count} live syscall stubs in ${scannedBytes} bytes`);
+        log(`[OK] Discovery complete: Found ${count} live syscall stubs in ${scannedBytes} bytes`);
 
     // Log key highlights
     const highlights = [0x14, 0x06, 0x2a, 0x05, 0x61, 0x17e, 0x26e, 0x1b0];
