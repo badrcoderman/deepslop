@@ -419,6 +419,8 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select class="hex-input" id="selPayload" style="flex:2;min-width:200px;cursor:pointer;background:#0d1527">
+          <option value="syscall_extractor">syscall_extractor.js — Automated In-Memory Syscall Resolver (FW 13.60)</option>
+          <option value="module_explorer">module_explorer.js — In-Memory SPRX Module & Symbol Explorer</option>
           <option value="syscore_connect_probe">syscore_connect_probe.js — SceSysCore Ipmi Probe (F-021/022)</option>
           <option value="sprx_dumper">sprx_dumper.js — Browser Download Dumper (aimRead)</option>
           <option value="sprx_dumper2">sprx_dumper2.js — Streaming Beacon Dumper (aimRead v2)</option>
@@ -496,7 +498,7 @@ const params = new URLSearchParams(location.search);
 const fw = params.get("fw") || detectedFw || "13.60";
 //note: Every runtime asset carries this build identifier and a timestamp so a
 //cached exploit or payload cannot silently mix with the current diagnostics.
-const BUILD_ID = "diag-13.60-3";
+const BUILD_ID = "diag-13.60-4";
 window.DEEPSLOP_BUILD_ID = BUILD_ID;
 
 $("fwBadge").textContent = `FW ${fw}`;
@@ -768,6 +770,7 @@ let lastViewedAddr = 0;
 $("btnExportDump").onclick = () => {
   if (!lastViewedBytes) { addLog("[WARN] No data currently in Hex Inspector to export"); return; }
   try {
+    //note: Attempt standard browser Blob download for PC/mobile browsers
     const blob = new Blob([lastViewedBytes], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -777,6 +780,15 @@ $("btnExportDump").onclick = () => {
     a.click();
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
     addLog(`[OK] Exported ${lastViewedBytes.length} bytes to dump file`);
+
+    //note: On-screen Base64 fallback specifically for PS5 console browser where <a download> is restricted
+    if (window.payOut) {
+      let b64Str = "";
+      for (let i = 0; i < lastViewedBytes.length; i += 0x200) {
+        b64Str += String.fromCharCode.apply(null, lastViewedBytes.subarray(i, i + 0x200));
+      }
+      window.payOut(`=== IN-MEMORY DUMP 0x${lastViewedAddr.toString(16)} (${lastViewedBytes.length} bytes) ===\n${btoa(b64Str)}`);
+    }
   } catch(e) { addLog("[ERR] Export failed: " + e.message); }
 };
 
