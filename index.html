@@ -498,7 +498,7 @@ const params = new URLSearchParams(location.search);
 const fw = params.get("fw") || detectedFw || "13.60";
 //note: Every runtime asset carries this build identifier and a timestamp so a
 //cached exploit or payload cannot silently mix with the current diagnostics.
-const BUILD_ID = "diag-13.60-5";
+const BUILD_ID = "diag-13.60-6";
 window.DEEPSLOP_BUILD_ID = BUILD_ID;
 
 $("fwBadge").textContent = `FW ${fw}`;
@@ -856,5 +856,24 @@ $("btnTestSyscall").onclick = () => {
   } else addLog("[WARN] Baseline diagnostics unavailable; run exploit first");
 };
 </script>
+  <!-- Floating Corner Offsets & Multi-Arg ROP Widget -->
+  <div id="cornerWidget" style="position:fixed;bottom:16px;right:16px;background:rgba(10,15,30,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(56,189,248,0.4);border-radius:12px;padding:12px 14px;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.6);max-width:300px;font-size:11px;color:var(--text-main);font-family:ui-monospace, monospace">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px">
+      <span style="font-weight:700;color:var(--cyan)">⚡ FW 13.20/13.60 Offsets</span>
+      <button id="btnToggleCorner" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px">✕</button>
+    </div>
+    <div style="line-height:1.6;color:var(--text-muted)">
+      <div>• <span style="color:#fff">getpid:</span> <span style="color:var(--emerald)">0x1B860</span></div>
+      <div>• <span style="color:#fff">close:</span> <span style="color:var(--emerald)">0x1C310</span></div>
+      <div>• <span style="color:#fff">pipe:</span> <span style="color:var(--emerald)">0x1B6B0</span></div>
+      <div>• <span style="color:#fff">socket:</span> <span style="color:var(--emerald)">0x1B920</span></div>
+      <div>• <span style="color:#fff">ipmimgr:</span> <span style="color:var(--emerald)">0x1AFC0</span></div>
+      <div>• <span style="color:#fff">thr_self:</span> <span style="color:var(--emerald)">0x1BE80</span></div>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:6px">
+      <button class="btn" id="btnTestMultiRop" style="padding:4px 8px;font-size:10px;flex:1">Test Multi-ROP</button>
+      <button class="btn" id="btnApply1320" style="padding:4px 8px;font-size:10px;flex:1">Load 13.20</button>
+    </div>
+  </div>
 </body>
 </html>
