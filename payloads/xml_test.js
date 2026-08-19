@@ -1,5 +1,5 @@
 // xml_test.js — In-Memory XML Entity Decoder & WebCore Parser Audit Payload (Safe & OOM-Proof)
-(async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     //note: Tests in-process DOMParser entity expansion and audits WebCore XML decoding boundaries without triggering memory leaks or native crashes.
     const k = window.ps5kern;
     const log = (msg) => {

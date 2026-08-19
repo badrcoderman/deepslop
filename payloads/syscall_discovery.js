@@ -1,5 +1,5 @@
 // syscall_discovery.js — scan-only syscall pattern discovery.
-(async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     const log = (message) => {
         if (typeof window.addLog === "function") window.addLog(message);
         if (typeof console !== "undefined" && console.log) console.log(message);

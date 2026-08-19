@@ -34,9 +34,10 @@ assert.ok(page.includes('id="dumpProgressFill"'));
 assert.ok(page.includes("PREFLIGHT PASS"));
 for (const speed of ["low", "medium", "high"])
     assert.ok(page.includes('data-speed="' + speed + '"'), "missing dump speed: " + speed);
-assert.strictEqual((page.match(/class="dump-start" disabled/g) || []).length, 9);
-assert.strictEqual((page.match(/class="dump-check" disabled/g) || []).length, 9);
+assert.strictEqual((page.match(/class="dump-start" disabled/g) || []).length, 12);
+assert.strictEqual((page.match(/class="dump-check" disabled/g) || []).length, 12);
 for (const module of [
+    "libkernel_web.sprx", "libSceNKWebKit.sprx", "libkernel.sprx",
     "libSceGvMp4Parser.sprx", "libSceAvPlayer.sprx", "libSceMetadataReaderWriter.sprx",
     "libSceEditMp4.sprx", "libSceWebmParserMdrw.sprx", "libSceContentSearch.sprx",
     "libSceAbstractStorage.sprx", "libSceAbstractLocal.sprx", "libSceIpmi.sprx",
@@ -50,6 +51,11 @@ for (const archivedName of [
 assert.ok(exploit.includes("REMOTE-JS-DISABLED"));
 assert.ok(exploit.includes("remote JavaScript loading is disabled"));
 assert.ok(!exploit.includes("CUSTOM_STUBS"));
+assert.ok(exploit.includes("deepslopModuleRegistry"));
+assert.ok(exploit.includes("memoryProfile"));
+assert.ok(exploit.includes("carrierSlots: 4500000"));
+assert.ok(exploit.includes("maxAttempts: 1"));
+assert.ok(!exploit.includes('Q.get("auto") !== "0"'));
 assert.ok(sprxDump.includes("programHeaderAddress"));
 assert.ok(!sprxDump.includes("BigInt(base) + phoff"));
 assert.ok(sprxDump.includes("verified module metadata is incomplete"));
@@ -67,6 +73,8 @@ for (const payload of manifest.payloads) {
     assert.ok(/^[a-z0-9_-]+\.js$/i.test(payload.file));
     assert.ok(payload.mode === "read-only" || payload.mode === "userland-safe");
     assert.ok(exists(path.join("payloads", payload.file)));
+    assert.ok(read(path.join("payloads", payload.file)).includes("__DEEPSLOP_PAYLOAD_PROMISE"),
+        "payload lacks completion promise: " + payload.name);
 }
 
 for (const archived of [

@@ -1,5 +1,5 @@
 // resizable_arraybuffer_probe.js -- one-shot, non-corrupting FW 13.60 API probe.
-(async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     const log = (message) => {
         if (typeof window.addLog === "function") window.addLog(message);
         if (typeof console !== "undefined" && console.log) console.log(message);

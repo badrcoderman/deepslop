@@ -1,6 +1,6 @@
 // sysinfo.js — REAL kernel data via clean syscalls (no crash, no PC)
 // Output: PS5 notification + log. Requires ps5kern (post-RCE).
-(async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     const k = window.ps5kern;
     if (!k) { return "ps5kern unavailable — run the exploit first"; }
 

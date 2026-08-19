@@ -1,5 +1,5 @@
 // memory_integrity.js — bounded repeated-read integrity checks without writes.
-(async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     const log = (message) => {
         if (typeof window.addLog === "function") window.addLog(message);
         if (typeof console !== "undefined" && console.log) console.log(message);

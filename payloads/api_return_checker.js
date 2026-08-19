@@ -1,5 +1,5 @@
 // api_return_checker.js — API Return Code & Flow Traversal Validator (Option 2)
-(async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     const k = window.ps5kern;
     const log = (msg) => {
         if (window.addLog) window.addLog(msg);

@@ -1,4 +1,4 @@
-(async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     // notification.js — Send on-screen PS5 notification from active Userland RCE
     const log = (msg) => {
         if (window.addLog) window.addLog(msg);

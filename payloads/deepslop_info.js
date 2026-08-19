@@ -1,4 +1,4 @@
-(async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     // deepslop_info.js — complete status report (bases + scan offsets + memory)
     const log = (msg) => {
         if (window.addLog) window.addLog(msg);

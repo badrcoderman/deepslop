@@ -22,6 +22,9 @@ MAX_CHUNK = 0x800
 MAX_MODULE = 0x800000
 COMPONENT_RE = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 ALLOWED_MODULES = {
+    "libkernel_web.sprx",
+    "libSceNKWebKit.sprx",
+    "libkernel.sprx",
     "libSceGvMp4Parser.sprx",
     "libSceAvPlayer.sprx",
     "libSceMetadataReaderWriter.sprx",

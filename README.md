@@ -96,7 +96,12 @@ JavaScript loading and dynamic payload evaluation are disabled.
    https://badrcoderman.github.io/deepslop/
    ```
 3. Click **`RUN USERLAND RCE`** to open the preserved execution surface.
-4. Use the userland-only preflight and diagnostic payloads after RCE succeeds.
+4. Select `LOW` memory profile for the first run. The launcher shows the live
+   stage log and keeps the last short log tail after a renderer restart.
+5. Use the userland-only preflight and diagnostic payloads after RCE succeeds.
+
+The default RCE run is one-shot with automatic retry disabled. `STANDARD` uses
+the historical allocation budget; use it only after LOW has been tested.
 
 ### Local SPRX Dump Receiver
 
@@ -117,6 +122,10 @@ complete module.
 Dump buttons remain disabled until a verified FW 13.60 module registry supplies
 the module base, load bias, and program-header address; guessed addresses are
 rejected.
+
+The verified runtime-anchor targets are `libkernel_web.sprx` and
+`libSceNKWebKit.sprx`. The actual `libkernel.sprx` row is shown as a locked
+candidate until its runtime base is independently verified.
 
 Local contract checks:
 ```bash

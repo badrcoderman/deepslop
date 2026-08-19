@@ -368,6 +368,18 @@
   #status-banner #sub-status { color:#7c8795 !important; display:block; font-size:14px !important; margin-top:3px; }
   #status-banner.ok { background:#16281c; border-left-color:#47c76a; color:#b8f0c6; }
   #status-banner.bad { background:#2c1618; border-left-color:#e05561; color:#ffc9cd; }
+  #runtimeTelemetry {
+    background:#111820;
+    border:1px solid rgba(34,211,238,.2);
+    border-radius:8px;
+    margin:0 auto 14px;
+    max-width:52rem;
+    padding:10px 12px;
+  }
+  #runtimeTelemetryHeader { align-items:center; display:flex; font:700 12px Consolas,monospace; justify-content:space-between; }
+  #runtimeState { color:#fbbf24; }
+  #runtimeDetail { color:#7c8795; font:11px Consolas,monospace; margin-top:4px; }
+  #liveLog { color:#bcecf2; font:11px/1.45 Consolas,monospace; margin:8px 0 0; max-height:180px; min-height:32px; overflow:auto; white-space:pre-wrap; word-break:break-word; }
   #triggerCard {
     background:none;
     border:0;
@@ -378,6 +390,8 @@
     padding:0;
   }
   #triggerCard .card-header, #triggerCard label { display:none; }
+  #triggerCard #memoryProfileLabel { align-items:center; color:#7c8795; display:flex; font:12px Consolas,monospace; gap:8px; justify-content:center; margin:0 0 12px; }
+  #memoryProfile { background:#202125; border:1px solid #39404a; border-radius:8px; color:#fff; font:700 12px Consolas,monospace; padding:7px 10px; }
   #triggerCard .btn-group-hero { display:flex; flex-direction:column; gap:14px; }
   #triggerCard .btn {
     background:#202125;
@@ -488,11 +502,24 @@
     <span id="sub-status" style="font-size:12px;color:var(--text-muted);font-family:monospace">Standby</span>
   </div>
 
+  <div id="runtimeTelemetry" aria-live="polite">
+    <div id="runtimeTelemetryHeader"><span>RUNTIME DIAGNOSTICS</span><span id="runtimeState">WAITING</span></div>
+    <div id="runtimeDetail">No RCE attempt started.</div>
+    <pre id="liveLog">Waiting for firmware offsets...</pre>
+  </div>
+
   <!-- Primary Execution Card -->
   <div class="card" id="triggerCard">
     <div class="card-header">
       <div class="card-title">Exploit Trigger</div>
     </div>
+    <label id="memoryProfileLabel" for="memoryProfile">Memory profile
+      <select id="memoryProfile">
+        <option value="low">LOW / conservative</option>
+        <option value="standard">STANDARD / current</option>
+        <option value="diagnostic">DIAGNOSTIC / minimal</option>
+      </select>
+    </label>
     <div class="btn-group-hero">
       <button class="btn btn-primary" id="btnRun">
         RUN USERLAND RCE
@@ -608,6 +635,9 @@
       </div>
     </div>
        <div id="dumpTargets">
+      <div class="dump-target" data-module="libkernel_web.sprx"><div class="dump-target-name">libkernel_web.sprx</div><div class="dump-target-role">Verified runtime anchor</div><div class="dump-target-status">RCE required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceNKWebKit.sprx"><div class="dump-target-name">libSceNKWebKit.sprx</div><div class="dump-target-role">Verified WebKit runtime anchor</div><div class="dump-target-status">RCE required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libkernel.sprx" data-kind="candidate"><div class="dump-target-name">libkernel.sprx</div><div class="dump-target-role">Candidate; runtime base not verified</div><div class="dump-target-status">not verified</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
       <div class="dump-target" data-module="libSceGvMp4Parser.sprx"><div class="dump-target-name">libSceGvMp4Parser.sprx</div><div class="dump-target-role">MP4 metadata / thumbnail parser</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
       <div class="dump-target" data-module="libSceAvPlayer.sprx"><div class="dump-target-name">libSceAvPlayer.sprx</div><div class="dump-target-role">MP4 and TS playback parser</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
       <div class="dump-target" data-module="libSceMetadataReaderWriter.sprx"><div class="dump-target-name">libSceMetadataReaderWriter.sprx</div><div class="dump-target-role">Metadata parser bridge</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
@@ -684,27 +714,74 @@ const BUILD_ID = "diag-13.60-7";
 window.DEEPSLOP_BUILD_ID = BUILD_ID;
 
 $("fwBadge").textContent = `FW ${fw}`;
-addLog(`[INFO] DEEPSLOP build ${BUILD_ID}`);
 
 let entry = null, isRunning = false;
+let logLines = [];
+const LOG_LIMIT = 80;
+
+function persistLogTail() {
+  try { sessionStorage.setItem("ds_log_tail", JSON.stringify(logLines.slice(-20))); } catch (e) {}
+}
+
+function renderLog() {
+  const text = logLines.join("\n");
+  const live = $("liveLog");
+  if (live) { live.textContent = text || "Waiting for firmware offsets..."; live.scrollTop = live.scrollHeight; }
+  const legacy = $("log");
+  if (legacy) { legacy.textContent = text; legacy.scrollTop = legacy.scrollHeight; }
+}
+
+function setRuntimeState(state, detail) {
+  const stateBox = $("runtimeState");
+  const detailBox = $("runtimeDetail");
+  if (stateBox) { stateBox.textContent = state; stateBox.dataset.state = state; }
+  if (detailBox) detailBox.textContent = detail || "";
+}
+window.setRceState = setRuntimeState;
+window.setRuntimeStage = function(stage) {
+  const detailBox = $("runtimeDetail");
+  if (detailBox) detailBox.textContent = String(stage).slice(0, 400);
+  try { sessionStorage.setItem("ds_last_stage", String(stage).slice(0, 400)); } catch (e) {}
+};
 
 function addLog(msg) {
-  const line = document.createElement("div");
-  let tag = "";
-  if (msg.includes("[OK]")) tag = " log-ok";
-  else if (msg.includes("[ERR]")) tag = " log-err";
-  else if (msg.includes("[WARN]")) tag = " log-warn";
-  else if (msg.includes("[SCP]")) tag = " log-scp";
-  else if (msg.includes("[INFO]")) tag = " log-info";
-  line.className = "log-entry" + tag;
-  line.textContent = msg;
-  const l = $("log");
-  if (l) {
-    l.appendChild(line);
-    l.scrollTop = l.scrollHeight;
-  }
+  const text = String(msg).slice(0, 400);
+  logLines.push(text);
+  if (logLines.length > LOG_LIMIT) logLines.splice(0, logLines.length - LOG_LIMIT);
+  renderLog();
+  if ((logLines.length & 3) === 0) persistLogTail();
 }
 window.addLog = addLog;
+try {
+  const saved = JSON.parse(sessionStorage.getItem("ds_log_tail") || "[]");
+  if (Array.isArray(saved)) logLines = saved.filter((line) => typeof line === "string").slice(-20);
+} catch (e) {}
+try {
+  const previousStage = sessionStorage.getItem("ds_last_stage");
+  if (previousStage) $("runtimeDetail").textContent = "Previous stage: " + previousStage;
+} catch (e) {}
+renderLog();
+addLog(`[INFO] DEEPSLOP build ${BUILD_ID}`);
+window.addEventListener("error", (event) => {
+  addLog("[ERR] window error: " + String(event && event.message || "unknown error"));
+  setRuntimeState("ERROR", "window error captured");
+});
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = event && event.reason;
+  addLog("[ERR] unhandled rejection: " + String(reason && reason.message || reason || "unknown rejection"));
+  setRuntimeState("ERROR", "unhandled rejection captured");
+});
+window.addEventListener("pagehide", persistLogTail);
+const MEMORY_PROFILE_SUMMARY = {
+  low: "carrier 4.5M / drain 128 / one attempt",
+  standard: "carrier 9M / drain 512 / one attempt",
+  diagnostic: "carrier 2M / drain 64 / one attempt",
+};
+$("memoryProfile").onchange = () => {
+  const profile = $("memoryProfile").value;
+  setRuntimeState("PROFILE SELECTED", MEMORY_PROFILE_SUMMARY[profile] || profile);
+  addLog("[INFO] memory profile selected: " + profile + " / " + (MEMORY_PROFILE_SUMMARY[profile] || "unknown"));
+};
 
 // ── Web Audio WakeLock Engine (Prevents PS5 WebKit Sleep & CPU Throttling) ──
 let audioCtx = null;
@@ -777,14 +854,31 @@ window.addExploitStatus = function(text, cls) {
   banner.className = cls || "run";
   $("status-text").textContent = text;
   $("sub-status").textContent = cls === "ok" ? "READY" : cls === "bad" ? "FAILED" : "ACTIVE";
-  
-  if (cls === "ok") {
+
+  if (cls === "ok" && window.notifyReady === true) {
+    setRuntimeState("RCE ACTIVE", "full userland RCE committed; bounded diagnostics available");
     $("payloadCard").style.display = "block";
     $("dumpCard").style.display = "block";
     $("btnRun").disabled = false;
     $("btnRun").innerHTML = "<span>✓</span> RCE ACTIVE";
     isRunning = false;
     refreshDumpControls();
+  } else if (cls === "ok") {
+    setRuntimeState("PROBE COMPLETE", "offset probe stopped before RCE commit; run full RCE to continue");
+    $("payloadCard").style.display = "none";
+    $("dumpCard").style.display = "none";
+    $("btnRun").disabled = false;
+    $("btnRun").innerHTML = "RUN USERLAND RCE";
+    isRunning = false;
+    refreshDumpControls();
+  } else if (cls === "bad") {
+    setRuntimeState("RCE FAILED", text);
+    isRunning = false;
+    $("btnRun").disabled = false;
+    $("btnProbe").disabled = false;
+    $("btnRun").innerHTML = "RUN USERLAND RCE";
+  } else {
+    setRuntimeState("RCE RUNNING", text);
   }
 };
 
@@ -799,6 +893,7 @@ fetch("offsets/offsets.json?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Dat
       $("status-banner").className = "ok";
       $("status-text").textContent = `FW ${fw} offsets ready`;
       $("sub-status").textContent = "ARMED";
+      setRuntimeState("OFFSETS READY", `FW ${fw} / profile ${$("memoryProfile").value}`);
       addLog(`[OK] FW ${fw} offsets resolved`);
       if (params.get("go") === "1") startRun(params.get("probe") === "1" ? "probe" : "full");
     } else {
@@ -813,9 +908,13 @@ fetch("offsets/offsets.json?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Dat
 function startRun(mode) {
   if (!entry || isRunning) return;
   isRunning = true;
+  window.notifyReady = false;
+  window.deepslopModuleRegistry = null;
+  refreshDumpControls();
   $("status-banner").className = "run";
   $("status-text").textContent = "Executing WebKit RCE chain…";
   $("sub-status").textContent = "RUNNING";
+  setRuntimeState(mode === "probe" ? "PROBE RUNNING" : "RCE RUNNING", "allocations have started; profile=" + $("memoryProfile").value);
   $("btnRun").disabled = true;
   $("btnProbe").disabled = true;
 
@@ -835,6 +934,8 @@ function startRun(mode) {
   }
   
   const scanChecked = $("chkScan") ? $("chkScan").checked : false;
+  const profile = $("memoryProfile") ? $("memoryProfile").value : "low";
+  q.set("profile", profile);
   if (mode === "probe" || scanChecked) {
     q.set("scan", "1");
     if (mode === "probe") q.set("probe", "1");
@@ -854,7 +955,8 @@ function startRun(mode) {
     expScript.src = "exploit.js?" + q.toString() + "&_=" + Date.now();
     expScript.onload = () => { addLog("[OK] Exploit engine executing"); };
     expScript.onerror = () => {
-      addLog("[ERR] Failed to load exploit.js");
+    addLog("[ERR] Failed to load exploit.js");
+      setRuntimeState("RCE FAILED", "exploit.js failed to load");
       $("status-banner").className = "bad";
       $("status-text").textContent = "Exploit load error";
       isRunning = false;
@@ -908,7 +1010,8 @@ function formatDuration(milliseconds) {
 
 function dumpMetadataAvailable(module) {
   const registry = window.deepslopModuleRegistry;
-  if (registry && typeof registry.loadAndDescribe === "function") return true;
+  if (registry && typeof registry.canDescribe === "function") return registry.canDescribe(module) === true;
+  if (registry && typeof registry.loadAndDescribe === "function") return false;
   const known = window.deepslopInfo && window.deepslopInfo.modules
     ? window.deepslopInfo.modules[module] : null;
   return Boolean(known && known.base != null && known.loadBias != null
@@ -920,12 +1023,13 @@ function refreshDumpControls() {
   document.querySelectorAll(".dump-target").forEach((row) => {
     const module = row.dataset.module;
     const available = rceReady && dumpMetadataAvailable(module);
+    const candidate = row.dataset.kind === "candidate";
     const dumpButton = row.querySelector(".dump-start");
     const checkButton = row.querySelector(".dump-check");
     if (dumpButton) dumpButton.disabled = dumpBusy || !available;
     if (checkButton) checkButton.disabled = dumpBusy || !available;
     if (!dumpBusy && !available) {
-      setDumpRowStatus(module, rceReady ? "loader required" : "RCE required", "");
+      setDumpRowStatus(module, candidate ? "not verified" : rceReady ? "loader required" : "RCE required", "");
     }
   });
 }
@@ -1010,7 +1114,11 @@ let payloadManifestPromise = fetch("payloads/manifest.json?build=" + encodeURICo
 async function runPayload(name) {
   const cleanName = String(name || "").trim().replace(/\.js$/i, "");
   const resBox = $("payloadResult");
-  if (window.notifyReady !== true) { addLog("[WARN] Run exploit first"); return; }
+  if (window.notifyReady !== true) {
+    addLog("[WARN] " + cleanName + ": run full RCE first");
+    setRuntimeState("RCE REQUIRED", "payload rejected before execution");
+    return;
+  }
   try {
     const manifest = await payloadManifestPromise;
     const spec = manifest.payloads.find((item) => item.name === cleanName);
@@ -1022,17 +1130,40 @@ async function runPayload(name) {
     if (spec.mode !== "read-only" && spec.mode !== "userland-safe")
       throw new Error("payload safety mode rejected");
     recordAction("Payload: " + cleanName);
+    window.__DEEPSLOP_PAYLOAD_PROMISE = null;
+    setRuntimeState("PAYLOAD RUNNING", cleanName);
     resBox.style.display = "block";
     resBox.textContent = "Starting " + cleanName + "...";
     const script = document.createElement("script");
     script.src = "payloads/" + spec.file + "?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now();
     script.onload = () => {
-      addLog("[OK] Payload started: " + cleanName);
-      clearActionState();
       if (script.parentNode) script.parentNode.removeChild(script);
+      const completion = window.__DEEPSLOP_PAYLOAD_PROMISE;
+      if (!completion || typeof completion.then !== "function") {
+        addLog("[OK] Payload loaded: " + cleanName);
+        setRuntimeState("PAYLOAD LOADED", cleanName + " did not expose a completion promise");
+        clearActionState();
+        return;
+      }
+      addLog("[INFO] Payload running: " + cleanName);
+      completion.then((result) => {
+        if (result !== undefined && result !== null
+          && resBox.textContent === "Starting " + cleanName + "...")
+          resBox.textContent = String(result);
+        addLog("[OK] Payload complete: " + cleanName);
+        setRuntimeState("PAYLOAD COMPLETE", cleanName);
+        clearActionState();
+      }).catch((error) => {
+        const message = String(error && error.message || error);
+        addLog("[ERR] Payload failed: " + cleanName + ": " + message);
+        setRuntimeState("PAYLOAD FAILED", message);
+        resBox.textContent = "Payload failed: " + message;
+        clearActionState();
+      });
     };
     script.onerror = () => {
       addLog("[ERR] " + cleanName + ": payload load failed");
+      setRuntimeState("PAYLOAD FAILED", cleanName + " failed to load");
       resBox.textContent = "Load error: " + cleanName;
       clearActionState();
       if (script.parentNode) script.parentNode.removeChild(script);

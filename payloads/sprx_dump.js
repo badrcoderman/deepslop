@@ -1,6 +1,9 @@
 // sprx_dump.js -- OOM-bounded, allowlisted in-memory SPRX dumper.
-window.__DEEPSLOP_DUMP_PROMISE = (async () => {
+window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () => {
     const MODULES = {
+        "libkernel_web.sprx": "Verified runtime anchor",
+        "libSceNKWebKit.sprx": "Verified WebKit runtime anchor",
+        "libkernel.sprx": "Candidate; runtime base not verified",
         "libSceGvMp4Parser.sprx": "MP4 metadata / thumbnail parser",
         "libSceAvPlayer.sprx": "MP4 and TS playback parser",
         "libSceMetadataReaderWriter.sprx": "Metadata parser bridge",
@@ -111,7 +114,8 @@ window.__DEEPSLOP_DUMP_PROMISE = (async () => {
 
     async function resolveModule(name) {
         const registry = window.deepslopModuleRegistry;
-        if (registry && typeof registry.loadAndDescribe === "function") {
+        if (registry && typeof registry.loadAndDescribe === "function"
+            && (!registry.canDescribe || registry.canDescribe(name))) {
             return registry.loadAndDescribe(name);
         }
         const known = window.deepslopInfo && window.deepslopInfo.modules
