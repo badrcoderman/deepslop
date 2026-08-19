@@ -96,12 +96,12 @@ JavaScript loading and dynamic payload evaluation are disabled.
    https://badrcoderman.github.io/deepslop/
    ```
 3. Click **`RUN USERLAND RCE`** to open the preserved execution surface.
-4. Select `LOW` memory profile for the first run. The launcher shows the live
-   stage log and keeps the last short log tail after a renderer restart.
+4. The launcher uses a fixed conservative LOW allocation profile. It shows the
+   live stage log and keeps the last short log tail after a renderer restart.
 5. Use the userland-only preflight and diagnostic payloads after RCE succeeds.
 
-The default RCE run is one-shot with automatic retry disabled. `STANDARD` uses
-the historical allocation budget; use it only after LOW has been tested.
+The RCE run is one-shot with automatic retry disabled. The larger historical
+allocation budget is not exposed by the launcher because it can trigger OOM.
 
 ### Local SPRX Dump Receiver
 

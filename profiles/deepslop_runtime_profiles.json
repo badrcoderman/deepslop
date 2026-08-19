@@ -31,9 +31,7 @@
       "memory": {
         "default": "low",
         "profiles": {
-          "low": { "carrierSlots": 4500000, "drainCount": 128, "maxAttempts": 1 },
-          "standard": { "carrierSlots": 9000000, "drainCount": 512, "maxAttempts": 1 },
-          "diagnostic": { "carrierSlots": 2000000, "drainCount": 64, "maxAttempts": 1 }
+          "low": { "carrierSlots": 4500000, "drainCount": 128, "maxAttempts": 1 }
         }
       }
     }

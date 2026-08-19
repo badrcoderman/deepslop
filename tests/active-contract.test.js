@@ -31,6 +31,9 @@ assert.ok(page.includes('id="dumpCard"'));
 assert.ok(page.includes('id="dumpTargets"'));
 assert.ok(page.includes('id="dumpEndpoint"'));
 assert.ok(page.includes('id="dumpProgressFill"'));
+assert.ok(page.includes('id="btnClearRuntimeLog"'));
+assert.ok(page.includes('id="btnClearPayloadOutput"'));
+assert.ok(!page.includes('id="memoryProfile"'));
 assert.ok(page.includes("PREFLIGHT PASS"));
 for (const speed of ["low", "medium", "high"])
     assert.ok(page.includes('data-speed="' + speed + '"'), "missing dump speed: " + speed);
@@ -56,6 +59,8 @@ assert.ok(exploit.includes("memoryProfile"));
 assert.ok(exploit.includes("carrierSlots: 4500000"));
 assert.ok(exploit.includes("maxAttempts: 1"));
 assert.ok(!exploit.includes('Q.get("auto") !== "0"'));
+assert.ok(!exploit.includes("MEMORY_PROFILES"));
+assert.ok(!exploit.includes('Q.get("profile")'));
 assert.ok(sprxDump.includes("programHeaderAddress"));
 assert.ok(!sprxDump.includes("BigInt(base) + phoff"));
 assert.ok(sprxDump.includes("verified module metadata is incomplete"));
