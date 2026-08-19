@@ -717,6 +717,7 @@ window.DEEPSLOP_BUILD_ID = BUILD_ID;
 $("fwBadge").textContent = `FW ${fw}`;
 
 let entry = null, isRunning = false;
+let runSerial = 0;
 let logLines = [];
 const LOG_LIMIT = 80;
 let logRenderPending = false;
@@ -962,9 +963,19 @@ if (String(fw) !== "13.60") {
 
 function startRun(mode) {
   if (!entry || isRunning) return;
+  const runToken = Date.now().toString(36) + "-" + (++runSerial);
+  window.__DEEPSLOP_ACTIVE_RUN = runToken;
   isRunning = true;
   window.notifyReady = false;
   window.deepslopModuleRegistry = null;
+  window.deepslopInfo = null;
+  window.deepslopStubs = null;
+  window._dsCarrier = null;
+  window.aimRead = null;
+  window.ps5kern = null;
+  window.send_notification = null;
+  window.__DEEPSLOP_PAYLOAD_PROMISE = null;
+  window.__DEEPSLOP_DUMP_PROMISE = null;
   refreshDumpControls();
   $("status-banner").className = "run";
   $("status-text").textContent = "Executing WebKit RCE chain…";
@@ -998,16 +1009,21 @@ function startRun(mode) {
     addLog("[INFO] Starting exploit in fast OOM-safe mode (offsets.json)");
   }
   q.set("build", BUILD_ID);
+  q.set("run", runToken);
   
   window.EXPLOIT_PARAMS = q;
 
   const s = document.createElement("script");
+  s.dataset.deepslopRuntime = runToken;
   s.src = "kernel-stubs.js?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now();
   s.onload = () => {
+    if (window.__DEEPSLOP_ACTIVE_RUN !== runToken) return;
     const expScript = document.createElement("script");
+    expScript.dataset.deepslopRuntime = runToken;
     expScript.src = "exploit.js?" + q.toString() + "&_=" + Date.now();
     expScript.onload = () => { addLog("[OK] Exploit engine executing"); };
     expScript.onerror = () => {
+      if (window.__DEEPSLOP_ACTIVE_RUN !== runToken) return;
       addLog("[ERR] Failed to load exploit.js");
       setRuntimeState("RCE FAILED", "exploit.js failed to load");
       $("status-banner").className = "bad";
@@ -1019,6 +1035,7 @@ function startRun(mode) {
     document.body.appendChild(expScript);
   };
   s.onerror = () => {
+    if (window.__DEEPSLOP_ACTIVE_RUN !== runToken) return;
     addLog("[ERR] Failed to load kernel-stubs.js");
     setRuntimeState("RCE FAILED", "kernel-stubs.js failed to load");
     isRunning = false;
@@ -1184,6 +1201,7 @@ async function runPayload(name) {
     setRuntimeState("RCE REQUIRED", "payload rejected before execution");
     return;
   }
+  payloadBusy = true;
   try {
     const manifest = await payloadManifestPromise;
     const spec = manifest.payloads.find((item) => item.name === cleanName);
@@ -1195,7 +1213,6 @@ async function runPayload(name) {
     if (spec.mode !== "read-only" && spec.mode !== "userland-safe")
       throw new Error("payload safety mode rejected");
     recordAction("Payload: " + cleanName);
-    payloadBusy = true;
     window.__DEEPSLOP_PAYLOAD_PROMISE = null;
     setRuntimeState("PAYLOAD RUNNING", cleanName);
     resBox.style.display = "block";

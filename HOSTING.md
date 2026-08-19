@@ -106,6 +106,27 @@ Guest أو VPN قبل تشغيل RCE.
 - إذا مات renderer بالكامل فلن تستطيع الصفحة تسجيل ما حدث بعد لحظة الموت، لكن
   آخر stage محفوظ قبل الانهيار سيظهر بعد إعادة التحميل.
 
+## Hardware A/B diagnosis
+
+Use a fresh page for every case. Do not press `RUN USERLAND RCE` twice and do
+not add `carrier`, `n`, or `auto` URL overrides.
+
+1. Run RCE only. Record the last `RUNTIME DIAGNOSTICS` stage.
+2. On a fresh page, run RCE then `Primitive Preflight` only.
+3. On a fresh page, run RCE then `CHECK` for one unlocked module.
+4. On a fresh page, run RCE, `CHECK`, then one LOW-speed `DUMP`.
+5. Save the browser `Previous stage` and receiver requests after each case.
+
+Interpret the first failing case, not the final page state:
+
+- Before `ADDROF-COPY`: carrier or capture allocation pressure.
+- During `SSV-GROOM`: drain, slab, or hole peak pressure.
+- After `RCE ACTIVE`: payload or retained primitive state pressure.
+- During `DUMP`: repeated-read, chunk, or receiver pressure.
+
+Do not compare a successful Poop2JB run as a FW 13.60 baseline. Its archived
+worker and allocation geometry target different firmware/runtime assumptions.
+
 ## تشغيل payloads
 
 بعد ظهور `RCE ACTIVE` شغل payload واحدا في كل مرة بهذا الترتيب:
