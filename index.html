@@ -719,9 +719,35 @@ $("fwBadge").textContent = `FW ${fw}`;
 let entry = null, isRunning = false;
 let logLines = [];
 const LOG_LIMIT = 80;
+let logRenderPending = false;
+let logPersistTimer = 0;
+let stagePersistTimer = 0;
+let pendingStage = "";
 
 function persistLogTail() {
   try { sessionStorage.setItem("ds_log_tail", JSON.stringify(logLines.slice(-20))); } catch (e) {}
+}
+
+function scheduleLogPersist() {
+  if (logPersistTimer) return;
+  logPersistTimer = setTimeout(() => {
+    logPersistTimer = 0;
+    persistLogTail();
+  }, 150);
+}
+
+function flushStagePersistence() {
+  if (!pendingStage) return;
+  try { sessionStorage.setItem("ds_last_stage", pendingStage); } catch (e) {}
+  pendingStage = "";
+}
+
+function scheduleStagePersist() {
+  if (stagePersistTimer) return;
+  stagePersistTimer = setTimeout(() => {
+    stagePersistTimer = 0;
+    flushStagePersistence();
+  }, 250);
 }
 
 function renderLog() {
@@ -730,6 +756,17 @@ function renderLog() {
   if (live) { live.textContent = text || "Waiting for firmware offsets..."; live.scrollTop = live.scrollHeight; }
   const legacy = $("log");
   if (legacy) { legacy.textContent = text; legacy.scrollTop = legacy.scrollHeight; }
+}
+
+function scheduleLogRender() {
+  if (logRenderPending) return;
+  logRenderPending = true;
+  const flush = () => {
+    logRenderPending = false;
+    renderLog();
+  };
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(flush);
+  else setTimeout(flush, 0);
 }
 
 function setRuntimeState(state, detail) {
@@ -741,20 +778,22 @@ function setRuntimeState(state, detail) {
 window.setRceState = setRuntimeState;
 window.setRuntimeStage = function(stage) {
   const detailBox = $("runtimeDetail");
-  if (detailBox) detailBox.textContent = String(stage).slice(0, 400);
-  try { sessionStorage.setItem("ds_last_stage", String(stage).slice(0, 400)); } catch (e) {}
+  pendingStage = String(stage).slice(0, 400);
+  if (detailBox) detailBox.textContent = pendingStage;
+  scheduleStagePersist();
 };
 
 function addLog(msg) {
   const text = String(msg).slice(0, 400);
   logLines.push(text);
   if (logLines.length > LOG_LIMIT) logLines.splice(0, logLines.length - LOG_LIMIT);
-  renderLog();
-  if ((logLines.length & 3) === 0) persistLogTail();
+  scheduleLogRender();
+  if ((logLines.length & 3) === 0) scheduleLogPersist();
 }
 window.addLog = addLog;
 function clearRuntimeLog() {
   logLines = [];
+  pendingStage = "";
   renderLog();
   try {
     sessionStorage.removeItem("ds_log_tail");
@@ -788,7 +827,10 @@ window.addEventListener("unhandledrejection", (event) => {
   addLog("[ERR] unhandled rejection: " + String(reason && reason.message || reason || "unknown rejection"));
   setRuntimeState("ERROR", "unhandled rejection captured");
 });
-window.addEventListener("pagehide", persistLogTail);
+window.addEventListener("pagehide", () => {
+  persistLogTail();
+  flushStagePersistence();
+});
 // ── Web Audio WakeLock Engine (Prevents PS5 WebKit Sleep & CPU Throttling) ──
 let audioCtx = null;
 let wakeLockActive = false;
@@ -849,10 +891,7 @@ function toggleWakeLock() {
 
 $("wakeLockBadge").onclick = toggleWakeLock;
 
-// Enable WakeLock on first user interaction
-document.addEventListener("click", () => {
-  if (!wakeLockActive) initWakeLock();
-}, { once: true });
+// WakeLock stays opt-in so the first RCE click does not start an extra audio task.
 
 
 window.addExploitStatus = function(text, cls) {
@@ -1080,7 +1119,8 @@ function startSprxDump(module) {
     endpoint: $("dumpEndpoint").value.trim() || "/__deepslop/dump",
   };
   window.__DEEPSLOP_DUMP_PROMISE = null;
-  runPayload("sprx_dump").then(() => window.__DEEPSLOP_DUMP_PROMISE).catch(() => null).finally(() => {
+  runPayload("sprx_dump").catch(() => null).finally(() => {
+    window.__DEEPSLOP_DUMP_PROMISE = null;
     dumpBusy = false;
     refreshDumpControls();
   });
@@ -1103,7 +1143,8 @@ function checkSprxDump(module) {
     endpoint: $("dumpEndpoint").value.trim() || "/__deepslop/dump",
   };
   window.__DEEPSLOP_DUMP_PROMISE = null;
-  runPayload("sprx_dump").then(() => window.__DEEPSLOP_DUMP_PROMISE).catch(() => null).finally(() => {
+  runPayload("sprx_dump").catch(() => null).finally(() => {
+    window.__DEEPSLOP_DUMP_PROMISE = null;
     dumpBusy = false;
     refreshDumpControls();
   });
@@ -1159,19 +1200,28 @@ async function runPayload(name) {
     setRuntimeState("PAYLOAD RUNNING", cleanName);
     resBox.style.display = "block";
     resBox.textContent = "Starting " + cleanName + "...";
+    await new Promise((resolve) => setTimeout(resolve, 0));
     return await new Promise((resolve) => {
       const script = document.createElement("script");
       let settled = false;
+      let completion = null;
+      const releaseCompletion = () => {
+        if (completion && window.__DEEPSLOP_PAYLOAD_PROMISE === completion)
+          window.__DEEPSLOP_PAYLOAD_PROMISE = null;
+        if (completion && window.__DEEPSLOP_DUMP_PROMISE === completion)
+          window.__DEEPSLOP_DUMP_PROMISE = null;
+      };
       const finish = (value) => {
         if (settled) return;
         settled = true;
+        releaseCompletion();
         payloadBusy = false;
         resolve(value);
       };
       script.src = "payloads/" + spec.file + "?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now();
       script.onload = () => {
         if (script.parentNode) script.parentNode.removeChild(script);
-        const completion = window.__DEEPSLOP_PAYLOAD_PROMISE;
+        completion = window.__DEEPSLOP_PAYLOAD_PROMISE;
         if (!completion || typeof completion.then !== "function") {
           addLog("[OK] Payload loaded: " + cleanName);
           setRuntimeState("PAYLOAD LOADED", cleanName + " did not expose a completion promise");

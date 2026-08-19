@@ -133,7 +133,8 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
             cache: "no-store",
         });
         if (!response.ok) throw new Error(endpoint + " returned HTTP " + response.status);
-        return response.json();
+        const result = await response.json();
+        return result;
     }
 
     async function fetchWithTimeout(url, options) {
@@ -199,7 +200,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
                     const length = Math.min(speed.chunk, segment.pFilesz - offset);
                     const source = Number(BigInt(loadBias) + BigInt(segment.pVaddr) + BigInt(offset));
                     if (!validAddress(source)) throw new Error("preflight source address rejected");
-                    const bytes = read(source, length);
+                    let bytes = read(source, length);
                     if (!bytes || bytes.length !== length)
                         throw new Error("preflight read failed at " + hex(source));
                     verified += length;
@@ -207,6 +208,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
                     const etaMs = verified ? Math.max(0, Math.round((total - verified) * elapsed / verified)) : null;
                     setProgress(total ? verified * 100 / total : 100, verified, total, etaMs, "run");
                     status(name + " / PREFLIGHT / verified " + verified + "/" + total + " bytes");
+                    bytes = null;
                     if (speed.delay) await sleep(speed.delay);
                     else await sleep(0);
                 }
@@ -246,7 +248,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
                 const length = Math.min(speed.chunk, segment.pFilesz - offset);
                 const source = Number(BigInt(loadBias) + BigInt(segment.pVaddr) + BigInt(offset));
                 if (!validAddress(source)) throw new Error("chunk source address rejected");
-                const chunk = read(source, length);
+                let chunk = read(source, length);
                 if (!chunk || chunk.length !== length) throw new Error("chunk read failed at " + hex(source));
                 const response = await fetchWithTimeout(endpoint + "/chunk", {
                     method: "POST",
@@ -264,6 +266,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
                 const ack = await response.json();
                 if (ack.nextOffset !== offset + length)
                     throw new Error("receiver acknowledgement mismatch");
+                chunk = null;
                 sent += length;
                 const elapsed = Math.max(1, Date.now() - startedAt);
                 const etaMs = sent ? Math.max(0, Math.round((total - sent) * elapsed / sent)) : null;
