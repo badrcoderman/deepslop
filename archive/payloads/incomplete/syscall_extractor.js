@@ -85,12 +85,15 @@
     //note: Limit scan length to max 128KB to prevent OOM/GC timeouts while scanning kernel .text segment.
     const maxScanLen = Math.min(textLen, 0x20000);
     for (let cur = textStart; cur < textStart + maxScanLen; cur += CHUNK_SIZE) {
+        //note: Read a small overlap so a syscall stub crossing a 4 KB boundary
+        //is not missed. Only addresses inside the current page are accepted.
         const scanLen = Math.min(CHUNK_SIZE, textStart + maxScanLen - cur);
-        const page = window.aimRead(kb + cur, scanLen);
+        const readLen = Math.min(scanLen + 0x10, textStart + maxScanLen - cur);
+        const page = window.aimRead(kb + cur, readLen);
         if (!page) continue;
         scannedBytes += scanLen;
 
-        for (let i = 0; i + 8 <= page.length; i++) {
+        for (let i = 0; i < scanLen && i + 8 <= page.length; i++) {
             let sysNum = null;
             let stubAddr = kb + cur + i;
 
@@ -122,17 +125,20 @@
         }
     }
 
-    // Populate runtime stubs table
-        //note: Only set deepslopStubs.verified to true if at least one valid syscall stub was located. Fails closed if scan found 0 stubs.
+    // Populate runtime stubs table.
+    //note: Verification requires both known anchor syscalls. A partial pattern
+    //scan is useful telemetry but is not a trusted dispatch table.
+    const count = Object.keys(foundStubs).length;
+    const anchorsVerified = foundStubs[0x14] && foundStubs[0x06];
     if (!window.deepslopStubs) window.deepslopStubs = { verified: false, addresses: {} };
-    window.deepslopStubs.verified = (count > 0);
+    window.deepslopStubs.verified = Boolean(anchorsVerified);
     window.deepslopStubs.addresses = window.deepslopStubs.addresses || {};
     for (const nr of Object.keys(foundStubs)) {
         const item = foundStubs[nr];
         window.deepslopStubs.addresses[item.name] = item.addr;
     }
 
-        log(`[OK] Discovery complete: Found ${count} live syscall stubs in ${scannedBytes} bytes`);
+    log(`[${anchorsVerified ? "OK" : "WARN"}] Discovery complete: Found ${count} live syscall stubs in ${scannedBytes} bytes`);
 
     // Log key highlights
     const highlights = [0x14, 0x06, 0x2a, 0x05, 0x61, 0x17e, 0x26e, 0x1b0];
@@ -144,9 +150,10 @@
     }
 
     const resultSummary = {
-        fw: "13.60",
+        fw: info.fw || "unknown",
         kernelBase: hx(kb),
         stubsFound: count,
+        verified: Boolean(anchorsVerified),
         stubs: foundStubs
     };
 

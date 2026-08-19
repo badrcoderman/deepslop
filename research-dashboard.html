@@ -362,7 +362,9 @@
                 
                 // 3. Load all payload scripts
                 for (const m of manifests) {
-                    const path = `research/payloads/${m.category === 'environment' ? 'env' : m.category === 'memory' ? 'memory' : m.category === 'webkit' ? 'webkit' : m.category === 'network' ? 'network' : m.category === 'graphics' ? 'graphics' : m.category === 'process' ? 'process' : 'stability'}/${m.name.split('-').slice(1).join('-')}.js`;
+                    const categoryPath = m.category === 'environment' ? 'env' : m.category === 'memory' ? 'memory' : m.category === 'webkit' ? 'webkit' : m.category === 'network' ? 'network' : m.category === 'graphics' ? 'graphics' : m.category === 'process' ? 'process' : 'stability';
+                    const payloadFile = m.name === 'net-info' ? 'net-info.js' : m.name.split('-').slice(1).join('-') + '.js';
+                    const path = `research/payloads/${categoryPath}/${payloadFile}`;
                     window.addLog(`[DSR:DEBUG] Loading ${path}...`);
                     try {
                         await loadScript(path);

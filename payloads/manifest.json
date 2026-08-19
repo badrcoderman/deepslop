@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "firmware": { "min": "13.60", "max": "13.60" },
+  "payloads": [
+    { "name": "primitive_preflight", "file": "primitive_preflight.js", "mode": "read-only" },
+    { "name": "userland_report", "file": "userland_report.js", "mode": "read-only" },
+    { "name": "module_map", "file": "module_map.js", "mode": "read-only" },
+    { "name": "worker_preflight", "file": "worker_preflight.js", "mode": "read-only" },
+    { "name": "syscall_discovery", "file": "syscall_discovery.js", "mode": "read-only" },
+    { "name": "memory_integrity", "file": "memory_integrity.js", "mode": "read-only" },
+    { "name": "resizable_arraybuffer_probe", "file": "resizable_arraybuffer_probe.js", "mode": "read-only" },
+    { "name": "baseline_diagnostics", "file": "baseline_diagnostics.js", "mode": "read-only" },
+    { "name": "api_return_checker", "file": "api_return_checker.js", "mode": "read-only" },
+    { "name": "deepslop_info", "file": "deepslop_info.js", "mode": "read-only" },
+    { "name": "notification", "file": "notification.js", "mode": "userland-safe" },
+    { "name": "sysinfo", "file": "sysinfo.js", "mode": "read-only" },
+    { "name": "xml_test", "file": "xml_test.js", "mode": "read-only" },
+    { "name": "sprx_dump", "file": "sprx_dump.js", "mode": "userland-safe" }
+  ]
+}

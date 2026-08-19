@@ -2,16 +2,20 @@
 
 > 🚀 **Standalone On-Device WebKit RCE & Vulnerability Research Framework for PlayStation 5 (FW 13.60)**
 
-[![Firmware](https://img.shields.io/badge/PS5%20FW-13.60%20%7C%2012.00%20%7C%2011.60-blue.svg)](#-firmware-support)
+[![Firmware](https://img.shields.io/badge/PS5%20FW-13.60-blue.svg)](#-firmware-support)
 [![Architecture](https://img.shields.io/badge/Mode-100%25%20Standalone%20On--Device-emerald.svg)](#-key-features)
-[![UI](https://img.shields.io/badge/UI-Modern%20Glassmorphic%20(<20KB)-purple.svg)](#-user-interface)
+[![UI](https://img.shields.io/badge/UI-P2JB--style%20preflight-purple.svg)](#user-interface)
 [![License](https://img.shields.io/badge/License-Research%20Only-lightgrey.svg)](#)
 
 ---
 
 ## 🌟 Overview
 
-**DEEPSLOP** is an advanced, standalone WebKit RCE and security research toolkit designed specifically for the PlayStation 5 (Prospero) browser environment. It enables arbitrary memory read/write, native syscall invocation, in-memory ELF64 parsing, POSIX shared memory auditing, and on-device module dumping without requiring any external PC servers.
+**DEEPSLOP** is a standalone FW 13.60 WebKit userland research toolkit for the
+PlayStation 5 browser. It provides the preserved userland RCE surface, bounded
+arbitrary reads, read-only ELF inspection, and conservative diagnostic payloads.
+Promoted arbitrary read/write, generic syscall dispatch, kernel escalation, and
+payload-loader paths are not enabled.
 
 Live Deployment: [https://badrcoderman.github.io/deepslop/](https://badrcoderman.github.io/deepslop/)
 
@@ -19,21 +23,18 @@ Live Deployment: [https://badrcoderman.github.io/deepslop/](https://badrcoderman
 
 ## 🎮 Firmware Support
 
-| PS5 Firmware | WebKit Userland RCE | In-Memory Dynamic `dlsym` | Kernel Scope |
+| PS5 Firmware | WebKit Userland RCE | Read-only ELF inspection | Kernel Scope |
 |:---:|:---:|:---:|:---:|
-| **13.60** | ✅ **Active & Verified** | ✅ **Full ELF64 Table Parsing** | Sandbox Userland (`NKWebProcess`) |
-| **12.00** | ✅ **Active & Verified** | ✅ **Full ELF64 Table Parsing** | Sandbox Userland (`NKWebProcess`) |
-| **11.60** | ✅ **Active & Verified** | ✅ **Full ELF64 Table Parsing** | Sandbox Userland (`NKWebProcess`) |
-| **9.00 – 10.01** | ✅ **Supported** | ✅ **Full ELF64 Table Parsing** | Sandbox Userland + Lapse Hooks |
+| **13.60** | ✅ **Preserved userland path** | ✅ **Bounded PT_LOAD map** | Userland diagnostics only |
 
 ---
 
 ## ⚡ Key Features
 
-1. **Arbitrary Memory Read Primitive (`window.aimRead`)**:
-   - Re-aims the exploit's carrier vector (`rwView`) dynamically to read any arbitrary memory address across the entire 64-bit userland address space, bypassing previous 8KB arena constraints safely.
-2. **Dynamic In-Memory Symbol Resolver (`_ds.dlsym` / `window.resolveSymbol`)**:
-   - Parses mapped ELF64 headers (`PT_DYNAMIC`, `DT_SYMTAB`, `DT_STRTAB`) directly from memory to resolve function pointers and Sony NIDs on the fly without hardcoded offset databases.
+1. **Bounded Memory Read Primitive (`window.aimRead`)**:
+   - Reads at most `0x1000` bytes per call and restores the carrier after every read.
+2. **Read-only ELF Inspection**:
+   - Validates ELF64 headers and PT_LOAD bounds from known userland bases without writing module or kernel memory.
 3. **Web Audio WakeLock Engine**:
    - Inaudible 1Hz `AudioContext` oscillator prevents PS5 WebKit tab freezing, sleep mode, and CPU throttling during long payload runs.
 4. **Crash-Safe Forensic Recorder**:
@@ -42,43 +43,48 @@ Live Deployment: [https://badrcoderman.github.io/deepslop/](https://badrcoderman
    - Real-time address inspection with Quick-Jump targets (`libkernel_web`, `WebKit Base`, `Arena Backing`) and one-click binary `.bin` export.
 6. **Zero-Allocation OOM Protections**:
    - Memory scanning loops reuse pre-allocated buffer caches (`scanChunk`), eliminating garbage collector (GC) spikes and tab crashes.
-7. **100% Standalone On-Device**:
-   - All PC dependencies removed. Payloads execute, display results, and trigger browser downloads directly on the console.
+7. **Exact Firmware Gating**:
+   - The launcher accepts only FW 13.60 and never aliases neighboring firmware offsets.
 
 ---
 
-## 📦 Built-In Payloads (16 Research Modules)
+## Built-In Payloads
 
 | Payload File | Name | Description |
 |:---|:---|:---|
-| `syscore_connect_probe.js` | **SceSysCore Ipmi Probe** | Probes kernel IPC transport (`syscall 0x26e ipmimgr_call`) & reachability (F-021/F-022) |
-| `sprx_dumper2.js` | **Streaming Dumper (v2)** | Memory-frugal ELF-aware streaming dumper with chunked output |
-| `sprx_dumper.js` | **SPRX Direct Dumper** | Dumps mapped modules (`libkernel_web`, `libSceAvPlayer`) to browser downloads via Blob |
-| `fsprobe.js` | **FS & Module Probe** | Audits sandbox filesystem permissions & dumps `libkernel_web` ELF header to Hex Viewer |
-| `shm_probe.js` | **Shared Memory Probe** | Tests POSIX shared memory descriptors (`/VideoParserThumbnail`, `/VideoParserTimecode`) |
-| `sysinfo.js` | **System Telemetry** | Reads PID, TID, pipe file descriptors, and verified syscall stubs |
-| `avplayer_test.js` | **AvPlayer Demuxer** | Tests in-process MP4 sample table allocation bounds and atom parsing |
-| `ipmi_fuzzer.js` | **IPMI Handler Fuzzer** | Fuzzes `libSceIpmi` client sessions and method dispatchers |
-| `mem_canary_probe.js` | **Heap Canary Probe** | Validates heap integrity and memory canary layouts |
-| `sysmodule_internal_probe.js` | **Sysmodule Loader** | Probes internal module loading interfaces |
-| `xml_test.js` | **XML Decoder Test** | Tests in-memory XML entity decoder buffer limits |
-| `api_return_checker.js` | **Syscall Matrix** | Systematically tests syscall return codes and sandbox restrictions |
-| `deepslop_info.js` | **DeepSlop RCE Report** | Generates detailed telemetry report of base addresses and memory layout |
-| `notification.js` | **OS Notification** | Sends customizable on-screen pop-up notification via `/dev/notification0` |
-| `helloworld.js` | **Hello World** | Basic RCE verification self-test |
-| `telemetry.js` | **Telemetry Logger** | Captures execution timings and diagnostic events |
+| `primitive_preflight.js` | **Primitive Preflight** | Validates bounded reads and baseline getpid behavior |
+| `userland_report.js` | **Userland Report** | Reports exact firmware, bases, and capability state |
+| `module_map.js` | **ELF Module Map** | Validates ELF64 program headers and PT_LOAD bounds |
+| `worker_preflight.js` | **Worker Preflight** | Tests ordinary Worker lifecycle without ROP or stack writes |
+| `syscall_discovery.js` | **Stub Discovery** | Scans syscall patterns without registering unverified calls |
+| `memory_integrity.js` | **Memory Integrity** | Performs bounded repeated-read checks without writes |
+| `resizable_arraybuffer_probe.js` | **Typed-Array Semantics** | One-shot resizable-buffer and `copyWithin` probe |
+| `baseline_diagnostics.js` | **Baseline Diagnostics** | Runs the existing safe getpid and aimRead checks |
+| `sysinfo.js` | **System Telemetry** | Reports guarded userland runtime information |
+| `xml_test.js` | **XML Decoder Test** | Runs a bounded in-process parser test |
+| `api_return_checker.js` | **API Return Checker** | Reports safe return-code behavior where available |
+| `deepslop_info.js` | **DeepSlop Report** | Reports userland RCE and memory layout state |
+| `notification.js` | **OS Notification** | Performs the existing userland notification sanity check |
+| `sprx_dump.js` | **SPRX Dump** | Streams allowlisted in-memory module segments to the PC with bounded chunks |
 
 ---
 
-## 🖥️ User Interface
+## User Interface
 
-The UI is built with a lightweight (~18KB) obsidian dark glassmorphism design optimized for PS5 rendering:
-- **Status Banner**: Real-time state indicators (`ARMED`, `RUNNING`, `RCE ACTIVE`).
-- **Hero Controls**: Quick `▶ RUN (Full RCE)` (OOM-safe by default) and `🔍 PROBE (Scan Offsets)`.
-- **Pinned Payloads Grid**: 8 one-click quick-action cards for top research modules.
-- **Universal Payload Injector**: Dropdown selector supporting all 16 payloads with instant injection.
-- **Hex Inspector**: Live memory viewer with ASCII decoding and raw binary download button.
-- **Live Terminal Console**: Color-coded, auto-scrolling execution log.
+The root launcher uses the P2JB-style static preflight layout: black background,
+large pill controls, stage/vitals/verdict panels, a capability table, and a
+compact text-first status flow. It does not load exploit code.
+
+The single `index.html` page keeps the existing exploit anchors and load order,
+but presents the minimal P2JB-style launcher before RCE. It exposes only the
+active FW 13.60 userland research payload manifest after RCE.
+
+P2JB and Poopsploit kernel stages remain disabled. No neighboring firmware values
+are inherited, and no promoted arbitrary read/write primitive is claimed.
+
+Archived payloads and P2JB worker references are under `archive/` and are not
+loaded. Active payloads are restricted by `payloads/manifest.json`; remote
+JavaScript loading and dynamic payload evaluation are disabled.
 
 ---
 
@@ -89,8 +95,37 @@ The UI is built with a lightweight (~18KB) obsidian dark glassmorphism design op
    ```text
    https://badrcoderman.github.io/deepslop/
    ```
-3. Click **`▶ RUN (Full RCE)`** to initialize the exploit chain.
-4. Once the notification **`PS5 OK`** appears, select any payload or inspect memory in the Hex Viewer!
+3. Click **`RUN USERLAND RCE`** to open the preserved execution surface.
+4. Use the userland-only preflight and diagnostic payloads after RCE succeeds.
+
+### Local SPRX Dump Receiver
+
+Run the PC receiver from the repository root:
+```bash
+python3 tools/sprx_dump_receiver.py --bind 0.0.0.0 --port 8000
+```
+
+Open `http://192.168.8.47:8000/` on the PS5. Select a library in the SPRX dump
+section and press `CHECK` first. The non-destructive preflight checks the
+receiver, exact firmware, verified module metadata, ELF/PT_LOAD layout, and
+reads every file-backed segment once in bounded chunks without uploading it.
+Start `DUMP` only after `PREFLIGHT PASS`, using `LOW`
+speed for the first full transfer. The progress bar shows acknowledged bytes,
+percentage, and an estimated time remaining. The receiver writes one
+acknowledged binary chunk directly to disk; the browser never stores the
+complete module.
+Dump buttons remain disabled until a verified FW 13.60 module registry supplies
+the module base, load bias, and program-header address; guessed addresses are
+rejected.
+
+Local contract checks:
+```bash
+node tests/active-contract.test.js
+node tests/resizable_arraybuffer_probe.test.js
+node tests/sprx_dump_preflight.test.js
+python3 tests/sprx_dump_contract.test.py
+node tools/scan-test.js
+```
 
 ---
 

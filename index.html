@@ -327,6 +327,141 @@
   @media (max-width: 520px) {
     .btn-group-hero, .grid-payloads { grid-template-columns: 1fr; }
   }
+
+  /* P2JB/Poopsploit launcher surface. Keep the exploit DOM, show only the
+     stage, two actions, and a short status line before RCE succeeds. */
+  body {
+    align-items: center;
+    background: #0c0c0f;
+    display: flex;
+    font: 22px/1.35 Arial, sans-serif;
+    justify-content: center;
+    min-height: 100vh;
+    overflow-y: auto;
+    padding: 22px 18px 64px;
+  }
+  #wrap { display:block; max-width:52rem; width:100%; }
+  header { border:0; display:block; padding:0; text-align:center; }
+  .brand { display:block; }
+  .brand-logo {
+    background:none;
+    color:#6f7076;
+    font-size:1.15rem;
+    letter-spacing:.42em;
+    margin-left:.42em;
+  }
+  .brand-ver, #wakeLockBadge, #fwBadge { display:none; }
+  #status-banner {
+    background:#1b2430;
+    border:0;
+    border-left:8px solid #5e81ac;
+    border-radius:6px;
+    box-shadow:none;
+    display:block;
+    margin:25px auto 12px;
+    max-width:52rem;
+    padding:10px 13px;
+    text-align:center;
+  }
+  #status-banner .status-indicator { display:block; font-size:24px; }
+  #status-banner .status-dot { display:none; }
+  #status-banner #sub-status { color:#7c8795 !important; display:block; font-size:14px !important; margin-top:3px; }
+  #status-banner.ok { background:#16281c; border-left-color:#47c76a; color:#b8f0c6; }
+  #status-banner.bad { background:#2c1618; border-left-color:#e05561; color:#ffc9cd; }
+  #triggerCard {
+    background:none;
+    border:0;
+    box-shadow:none;
+    display:block;
+    margin:0 auto;
+    max-width:30rem;
+    padding:0;
+  }
+  #triggerCard .card-header, #triggerCard label { display:none; }
+  #triggerCard .btn-group-hero { display:flex; flex-direction:column; gap:14px; }
+  #triggerCard .btn {
+    background:#202125;
+    border:0;
+    border-radius:1.25rem;
+    color:#fff;
+    font:800 1.35rem Arial, sans-serif;
+    min-height:62px;
+    padding:1rem 2rem;
+  }
+  #triggerCard .btn:hover:not(:disabled), #triggerCard .btn:focus:not(:disabled) {
+    background:#a2a2a6;
+    color:#202020;
+    outline:none;
+    transform:none;
+  }
+  #triggerCard .btn-primary { background:#223146; border:2px solid #5e81ac; box-shadow:none; }
+  #payloadCard { margin-top:24px; }
+  #consoleCard, #cornerWidget { display:none !important; }
+  #payloadCard .card-header, #payloadCard .grid-payloads,
+  #payloadCard > div:not(#payloadResult) { display:block; }
+  #payloadResult {
+    background:#17171b !important;
+    border:1px solid #2a2a2e !important;
+    color:#d8d8dc !important;
+    display:block !important;
+    font:16px/1.5 Consolas, monospace !important;
+    margin:14px auto 0 !important;
+    max-width:52rem;
+    text-align:left;
+  }
+  #payloadCard > .card-header + .grid-payloads + div { display:block; }
+  #payloadCard #selPayload, #payloadCard #btnRunSelectedPayload { display:inline-flex !important; }
+  #payloadCard #btnToggleHex, #payloadCard #btnTestSyscall,
+  #payloadCard a[href="video-test.html"] { display:none !important; }
+  #payloadCard:before {
+    color:#6f7076;
+    content:"RCE ACTIVE / userland diagnostics ready";
+    display:block;
+    font:700 16px Consolas, monospace;
+    margin:0 0 10px;
+    text-align:center;
+  }
+  #dumpCard { display:none; margin-top:24px; }
+  #dumpCard .dump-toolbar {
+    background:rgba(0,0,0,0.22);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:12px;
+    padding:12px;
+  }
+  #dumpCard .dump-toolbar label { color:var(--text-muted); display:flex; flex:1 1 250px; flex-direction:column; font:11px/1.4 Consolas,monospace; gap:4px; }
+  #dumpCard .dump-toolbar input { background:#0d1527; border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); font:12px Consolas,monospace; padding:8px; }
+  #dumpCard .dump-speeds { align-items:end; display:flex; flex:0 1 260px; gap:5px; }
+  #dumpCard .dump-speed { background:#182338; border:1px solid var(--card-border); border-radius:6px; color:var(--text-muted); cursor:pointer; flex:1; font:700 11px Consolas,monospace; padding:8px 5px; }
+  #dumpCard .dump-speed.active { background:#174e5b; border-color:#22d3ee; color:#d9fbff; }
+  #dumpTargets { display:grid; gap:7px; }
+  .dump-target { align-items:center; background:rgba(0,0,0,0.18); border:1px solid var(--card-border); border-radius:8px; display:flex; gap:10px; justify-content:space-between; padding:9px 10px; }
+  .dump-target-name { color:var(--text-main); flex:1; font:700 12px Consolas,monospace; overflow-wrap:anywhere; }
+  .dump-target-role { color:var(--text-muted); flex:1; font:11px/1.35 Consolas,monospace; }
+  .dump-target-status { color:var(--text-muted); font:11px Consolas,monospace; min-width:125px; text-align:right; }
+  .dump-target-status.ok { color:var(--emerald); }
+  .dump-target-status.bad { color:var(--red); }
+  .dump-target-status.run { color:var(--amber); }
+  .dump-target button { background:#223146; border:1px solid #5e81ac; border-radius:6px; color:#fff; cursor:pointer; font:700 11px Consolas,monospace; padding:8px 11px; }
+  .dump-target button:disabled { cursor:not-allowed; opacity:.45; }
+  #dumpStatus { background:#111820; border:1px solid rgba(34,211,238,.2); border-radius:8px; color:#bcecf2; font:12px/1.45 Consolas,monospace; margin-top:12px; max-height:170px; overflow:auto; padding:10px; white-space:pre-wrap; word-break:break-word; }
+  #dumpProgress { background:#0b1118; border:1px solid rgba(34,211,238,.2); border-radius:8px; margin-top:10px; overflow:hidden; }
+  #dumpProgressFill { background:linear-gradient(90deg,#176b7b,#22d3ee); height:12px; transition:width .15s ease; width:0%; }
+  #dumpProgressMeta { color:var(--text-muted); display:flex; font:11px Consolas,monospace; justify-content:space-between; margin-top:5px; }
+  #dumpGuide { background:rgba(13,21,39,.72); border:1px solid var(--card-border); border-radius:8px; color:var(--text-muted); font:12px/1.65 Arial,sans-serif; margin-top:12px; padding:9px 12px; }
+  #dumpGuide summary { color:#d9fbff; cursor:pointer; font-weight:700; }
+  #dumpGuide p { margin:8px 0 0; }
+  @media (max-width:700px) {
+    .dump-target { align-items:stretch; flex-direction:column; }
+    .dump-target-status { min-width:0; text-align:left; }
+    .dump-target button { width:100%; }
+  }
+  #what { color:#6f7076; font-size:14px; margin:17px auto 0; max-width:35rem; text-align:center; }
+  #scopeNote { color:#6f7076; font:14px/1.5 Consolas, monospace; margin:16px auto 0; max-width:35rem; text-align:center; }
+  #credits { bottom:14px; color:#3d3e43; font-size:11px; left:0; letter-spacing:.08em; position:fixed; right:0; text-align:center; }
 </style>
 </head>
 <body>
@@ -336,7 +471,7 @@
   <header>
     <div class="brand">
       <div class="brand-logo">DEEPSLOP</div>
-      <div class="brand-ver">Standalone 13.60</div>
+      <div class="brand-ver">FW 13.60 Userland</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <div class="badge-fw" id="wakeLockBadge" style="cursor:pointer;color:var(--emerald);border-color:rgba(16,185,129,0.3)" title="Click to toggle WakeLock">⚡ WakeLock: ON</div>
@@ -354,61 +489,62 @@
   </div>
 
   <!-- Primary Execution Card -->
-  <div class="card">
+  <div class="card" id="triggerCard">
     <div class="card-header">
       <div class="card-title">Exploit Trigger</div>
     </div>
     <div class="btn-group-hero">
       <button class="btn btn-primary" id="btnRun">
-        <span>▶</span> RUN (Full RCE)
+        RUN USERLAND RCE
       </button>
       <button class="btn" id="btnProbe">
-        <span>🔍</span> PROBE (Scan Offsets)
+        13.60 PREFLIGHT
       </button>
     </div>
     <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:10px;cursor:pointer">
       <input type="checkbox" id="chkScan"> Auto-scan offsets (Unchecked = Fast OOM-Safe)
     </label>
   </div>
+  <div id="scopeNote">FW 13.60 exact profile / WebKit userland research only</div>
 
-  <!-- Pinned Research Operations (Displayed upon RCE) -->
+  <!-- Static userland-only research operations. Kernel-stage and unprofiled calls are absent. -->
   <div class="card" id="payloadCard" style="display:none">
     <div class="card-header">
-      <div class="card-title">🔥 Pinned Research Operations</div>
+      <div class="card-title">Userland Research Operations</div>
       <span style="font-size:11px;color:var(--emerald);font-weight:600">Post-RCE Ready</span>
     </div>
     <div class="grid-payloads">
-      <div class="payload-btn cyan" id="btnSyscoreProbe">
-        <div class="payload-head"><span>⚡</span> SceSysCore Ipmi Probe</div>
-        <div class="payload-desc">Probe syscall 0x26e ipmimgr_call & reachability</div>
+      <div class="payload-btn cyan" id="btnBaseline">
+        <div class="payload-head">Primitive Preflight</div>
+        <div class="payload-desc">Validate getpid, repeated aimRead, and restoration</div>
       </div>
-      <div class="payload-btn green" id="btnSprxDumper">
-        <div class="payload-head"><span>📥</span> SPRX Dumper</div>
-        <div class="payload-desc">Dump modules to browser downloads</div>
+      <div class="payload-btn green" id="btnUserlandReport">
+        <div class="payload-head">Userland Report</div>
+        <div class="payload-desc">Report exact firmware, bases, and capability state</div>
       </div>
-      <div class="payload-btn green" id="btnFsprobe">
-        <div class="payload-head"><span>🚀</span> FS & Module Probe</div>
-        <div class="payload-desc">Audit filesystem & inspect libkernel_web</div>
+      <div class="payload-btn green" id="btnModuleMap">
+        <div class="payload-head">ELF Module Map</div>
+        <div class="payload-desc">Read-only ELF and PT_LOAD validation</div>
       </div>
-      <div class="payload-btn purple" id="btnAvPlayer">
-        <div class="payload-head"><span>🎬</span> AvPlayer Demuxer</div>
-        <div class="payload-desc">Test in-process MP4 sample table bounds</div>
+      <div class="payload-btn purple" id="btnWorkerPreflight">
+        <div class="payload-head">Worker Preflight</div>
+        <div class="payload-desc">Check ordinary Worker availability; no ROP or stack writes</div>
       </div>
-      <div class="payload-btn amber" id="btnShmProbe">
-        <div class="payload-head"><span>💾</span> Shared Memory</div>
-        <div class="payload-desc">Probe /VideoParserThumbnail POSIX SHM</div>
+      <div class="payload-btn amber" id="btnSyscallDiscovery">
+        <div class="payload-head">Stub Discovery</div>
+        <div class="payload-desc">Scan and verify patterns without registering calls</div>
       </div>
       <div class="payload-btn cyan" id="btnSysinfo">
-        <div class="payload-head"><span>ℹ️</span> System Telemetry</div>
-        <div class="payload-desc">Kernel base, PID, TID & memory map</div>
+        <div class="payload-head">System Telemetry</div>
+        <div class="payload-desc">Read-only PID, TID, and runtime state</div>
       </div>
-      <div class="payload-btn purple" id="btnIpmiFuzzer">
-        <div class="payload-head"><span>📡</span> Ipmi Fuzzer</div>
-        <div class="payload-desc">Fuzz libSceIpmi client session methods</div>
+      <div class="payload-btn purple" id="btnMemoryIntegrity">
+        <div class="payload-head">Memory Integrity</div>
+        <div class="payload-desc">Bounded repeated-read and address checks</div>
       </div>
       <div class="payload-btn amber" id="btnXmlTest">
-        <div class="payload-head"><span>📄</span> XML Decoder</div>
-        <div class="payload-desc">Test in-memory XML entity buffer</div>
+        <div class="payload-head">XML Decoder</div>
+        <div class="payload-desc">Bounded in-process parser test</div>
       </div>
     </div>
 
@@ -419,24 +555,25 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select class="hex-input" id="selPayload" style="flex:2;min-width:200px;cursor:pointer;background:#0d1527">
-          <option value="syscall_extractor">syscall_extractor.js — Automated In-Memory Syscall Resolver (FW 13.60)</option>
-          <option value="module_explorer">module_explorer.js — In-Memory SPRX Module & Symbol Explorer</option>
-          <option value="syscore_connect_probe">syscore_connect_probe.js — SceSysCore Ipmi Probe (F-021/022)</option>
-          <option value="sprx_dumper">sprx_dumper.js — Browser Download Dumper (aimRead)</option>
-          <option value="sprx_dumper2">sprx_dumper2.js — Streaming Beacon Dumper (aimRead v2)</option>
-          <option value="fsprobe">fsprobe.js — Filesystem Audit & Kernel ELF Header</option>
-          <option value="shm_probe">shm_probe.js — Shared Memory Descriptors Probe</option>
+          <option value="primitive_preflight">primitive_preflight.js — Read-only primitive validation</option>
+          <option value="userland_report">userland_report.js — Exact FW and capability report</option>
+          <option value="module_map">module_map.js — Read-only ELF/PT_LOAD map</option>
+          <option value="worker_preflight">worker_preflight.js — Ordinary Worker availability</option>
+          <option value="syscall_discovery">syscall_discovery.js — Scan-only stub discovery</option>
+          <option value="memory_integrity">memory_integrity.js — Bounded repeated-read checks</option>
+          <option value="resizable_arraybuffer_probe">resizable_arraybuffer_probe.js — One-shot typed-array semantics probe</option>
           <option value="sysinfo">sysinfo.js — System Telemetry (PID/TID/KernelBase)</option>
-          <option value="avplayer_test">avplayer_test.js — In-Process MP4 Demuxer Test</option>
-          <option value="ipmi_fuzzer">ipmi_fuzzer.js — IPMI Handler Method Fuzzer</option>
-          <option value="mem_canary_probe">mem_canary_probe.js — Memory Canary Integrity Probe</option>
-          <option value="sysmodule_internal_probe">sysmodule_internal_probe.js — System Module Probe</option>
           <option value="xml_test">xml_test.js — XML Entity Decoder Test</option>
           <option value="api_return_checker">api_return_checker.js — Syscall Return Code Matrix</option>
           <option value="deepslop_info">deepslop_info.js — DeepSlop RCE Telemetry Report</option>
           <option value="notification">notification.js — Send OS System Notification</option>
-          <option value="helloworld">helloworld.js — Basic Userland RCE Sanity</option>
-          <option value="telemetry">telemetry.js — Remote/Local Telemetry Log</option>
+          <option value="" disabled>Archived: legacy module/file probes</option>
+          <option value="" disabled>Archived: kernel-interface probes</option>
+          <option value="" disabled>Archived: fuzzing and stress payloads</option>
+          <option value="" disabled>Archived: incomplete parser experiments</option>
+          <option value="" disabled>Archived: superseded syscall scanner</option>
+          <option value="" disabled>Archived: remote telemetry channel</option>
+          <option value="" disabled>Archived: unsupported worker adapter</option>
         </select>
         <button class="btn btn-primary" id="btnRunSelectedPayload" style="padding:9px 18px">Inject</button>
       </div>
@@ -445,11 +582,55 @@
     <!-- Secondary Tools Row -->
     <div style="display:flex;gap:8px;margin-top:10px">
       <button class="btn" style="flex:1" id="btnToggleHex">🔍 Hex Inspector</button>
-      <button class="btn" style="flex:1" id="btnTestSyscall">🛰 Test Syscalls</button>
+      <button class="btn" style="flex:1" id="btnTestSyscall">Baseline Check</button>
       <a class="btn" style="flex:1" href="video-test.html">▶ Video Page</a>
     </div>
     
     <div id="payloadResult" style="font-family:ui-monospace, 'SF Mono', monospace;font-size:12px;color:var(--cyan);margin-top:12px;padding:12px 14px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.25);border-radius:8px;max-height:220px;overflow-y:auto;white-space:pre-wrap;display:none;word-break:break-all;line-height:1.5"></div>
+  </div>
+
+  <!-- OOM-safe PC SPRX dump controls. Module loading remains fail-closed until a verified registry exists. -->
+  <div class="card" id="dumpCard">
+    <div class="card-header">
+      <div class="card-title">SPRX Memory Dump</div>
+      <span style="font-size:11px;color:var(--amber);font-weight:600">One chunk / one ACK</span>
+    </div>
+    <div class="dump-toolbar">
+      <label>
+        PC receiver
+        <input id="dumpEndpoint" value="/__deepslop/dump" spellcheck="false">
+        <span>Run locally at http://192.168.8.47:8000/</span>
+      </label>
+      <div class="dump-speeds" role="group" aria-label="Dump speed">
+        <button class="dump-speed active" data-speed="low">LOW<br><small>0x200 / 100ms</small></button>
+        <button class="dump-speed" data-speed="medium">MED<br><small>0x400 / 25ms</small></button>
+        <button class="dump-speed" data-speed="high">HIGH<br><small>0x800 / ACK</small></button>
+      </div>
+    </div>
+       <div id="dumpTargets">
+      <div class="dump-target" data-module="libSceGvMp4Parser.sprx"><div class="dump-target-name">libSceGvMp4Parser.sprx</div><div class="dump-target-role">MP4 metadata / thumbnail parser</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceAvPlayer.sprx"><div class="dump-target-name">libSceAvPlayer.sprx</div><div class="dump-target-role">MP4 and TS playback parser</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceMetadataReaderWriter.sprx"><div class="dump-target-name">libSceMetadataReaderWriter.sprx</div><div class="dump-target-role">Metadata parser bridge</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceEditMp4.sprx"><div class="dump-target-name">libSceEditMp4.sprx</div><div class="dump-target-role">MP4 editing and composition parser</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceWebmParserMdrw.sprx"><div class="dump-target-name">libSceWebmParserMdrw.sprx</div><div class="dump-target-role">WebM thumbnail parser</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceContentSearch.sprx"><div class="dump-target-name">libSceContentSearch.sprx</div><div class="dump-target-role">Media content-search consumer</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceAbstractStorage.sprx"><div class="dump-target-name">libSceAbstractStorage.sprx</div><div class="dump-target-role">Abstract storage metadata consumer</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceAbstractLocal.sprx"><div class="dump-target-name">libSceAbstractLocal.sprx</div><div class="dump-target-role">Local storage metadata consumer</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+      <div class="dump-target" data-module="libSceIpmi.sprx"><div class="dump-target-name">libSceIpmi.sprx</div><div class="dump-target-role">System IPC framework</div><div class="dump-target-status">loader required</div><button class="dump-check" disabled>CHECK</button><button class="dump-start" disabled>DUMP</button></div>
+    </div>
+    <div id="dumpProgress"><div id="dumpProgressFill"></div></div>
+    <div id="dumpProgressMeta"><span id="dumpProgressText">0% / not started</span><span id="dumpEta">ETA --</span></div>
+    <div id="dumpStatus">Ready. Low speed is selected. The browser keeps one bounded chunk only.</div>
+    <details id="dumpGuide">
+      <summary>دليل التفريغ الآمن من جهاز PS5 إلى الكمبيوتر</summary>
+      <div dir="rtl">
+        <p>شغّل الخادم على الكمبيوتر ثم افتح الصفحة من العنوان المحلي: <code>http://192.168.8.47:8000/</code>.</p>
+        <p>ابدأ بسرعة LOW في أول تجربة. يتم إرسال قطعة صغيرة واحدة فقط، وينتظر المتصفح تأكيد الكمبيوتر قبل قراءة القطعة التالية، لذلك لا يتم تحميل ملف SPRX كاملًا في ذاكرة المتصفح.</p>
+        <p>لا تستخدم GitHub Pages للتفريغ المحلي إذا كان الاتصال المباشر بالكمبيوتر متاحًا. إذا ظهر خطأ أو توقف، أوقف العملية ولا تعاود المحاولة بسرعة HIGH قبل مراجعة السجل.</p>
+        <p>اضغط CHECK أولًا. يقرأ الاختبار رأس ELF وكل البايتات المدعومة للملف قطعةً واحدة في كل مرة ثم يرمي القطعة، ولا يرسل الملف. إذا نجح الاختبار وظهر <code>PREFLIGHT PASS</code> يصبح DUMP جاهزًا للبدء.</p>
+        <p>الأزرار لا تستخدم قراءة ملفات النظام ولا مراحل kernel. إذا لم يتوفر محمل modules موثّق، ستظهر الحالة <code>loader required</code> ويتوقف الزر بأمان.</p>
+      </div>
+    </details>
   </div>
 
   <!-- Built-in In-Browser Hex Inspector -->
@@ -476,7 +657,7 @@
   </div>
 
   <!-- Terminal Log Console -->
-  <div class="card">
+  <div class="card" id="consoleCard">
     <div class="card-header">
       <div class="card-title">Console Output</div>
       <button class="btn" id="btnClearLog" style="padding:2px 8px;font-size:11px">Clear</button>
@@ -484,6 +665,7 @@
     <div class="log-box" id="log"></div>
   </div>
 </div>
+<div id="credits">DEEPSLOP / FW 13.60 USERLAND RESEARCH</div>
 
 <!-- Hidden anchors for exploit.js -->
 <div id="cap" hidden></div><div id="cat" hidden></div><pre id="scr" hidden></pre>
@@ -598,9 +780,11 @@ window.addExploitStatus = function(text, cls) {
   
   if (cls === "ok") {
     $("payloadCard").style.display = "block";
+    $("dumpCard").style.display = "block";
     $("btnRun").disabled = false;
     $("btnRun").innerHTML = "<span>✓</span> RCE ACTIVE";
     isRunning = false;
+    refreshDumpControls();
   }
 };
 
@@ -608,13 +792,15 @@ window.addExploitStatus = function(text, cls) {
 fetch("offsets/offsets.json?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now())
   .then(r => r.json())
   .then(data => {
-    entry = data[fw] || data["13.60"] || data["11.60"];
+    //note: Never inherit a neighboring firmware's exploit offsets. Unsupported
+    //firmware must stop before the chain is armed.
+    entry = data[fw] || null;
     if (entry) {
       $("status-banner").className = "ok";
       $("status-text").textContent = `FW ${fw} offsets ready`;
       $("sub-status").textContent = "ARMED";
       addLog(`[OK] FW ${fw} offsets resolved`);
-      if (params.get("go") === "1") startRun("full");
+      if (params.get("go") === "1") startRun(params.get("probe") === "1" ? "probe" : "full");
     } else {
       $("status-banner").className = "bad";
       $("status-text").textContent = `FW ${fw} unsupported`;
@@ -682,46 +868,182 @@ function startRun(mode) {
   document.head.appendChild(s);
 }
 
+let dumpSpeed = "low";
+let dumpBusy = false;
+function setDumpRowStatus(module, message, cls) {
+  const row = document.querySelector('.dump-target[data-module="' + module + '"]');
+  if (!row) return;
+  const badge = row.querySelector(".dump-target-status");
+  if (badge) { badge.textContent = message; badge.className = "dump-target-status " + (cls || ""); }
+}
+window.setDumpRowStatus = setDumpRowStatus;
+window.setDumpStatus = function(message) {
+  const box = $("dumpStatus");
+  if (box) box.textContent = message;
+};
+window.setDumpProgress = function(percent, sent, total, etaMs, state) {
+  const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+  const fill = $("dumpProgressFill");
+  if (fill) {
+    fill.style.width = safePercent.toFixed(1) + "%";
+    fill.style.background = state === "bad" ? "#c6535e" : state === "ok" ? "#47c76a" : "linear-gradient(90deg,#176b7b,#22d3ee)";
+  }
+  const text = $("dumpProgressText");
+  if (text) text.textContent = total ? safePercent.toFixed(1) + "% / " + sent + "/" + total + " bytes" : "0% / not started";
+  const eta = $("dumpEta");
+  if (eta) {
+    if (state === "ok") eta.textContent = "READY";
+    else if (state === "bad") eta.textContent = "STOPPED";
+    else if (Number.isFinite(etaMs) && etaMs >= 0) eta.textContent = "ETA " + formatDuration(etaMs);
+    else eta.textContent = "ETA --";
+  }
+};
+
+function formatDuration(milliseconds) {
+  const seconds = Math.max(0, Math.ceil(Number(milliseconds) / 1000));
+  if (seconds < 60) return seconds + "s";
+  const minutes = Math.floor(seconds / 60);
+  return minutes + "m " + String(seconds % 60).padStart(2, "0") + "s";
+}
+
+function dumpMetadataAvailable(module) {
+  const registry = window.deepslopModuleRegistry;
+  if (registry && typeof registry.loadAndDescribe === "function") return true;
+  const known = window.deepslopInfo && window.deepslopInfo.modules
+    ? window.deepslopInfo.modules[module] : null;
+  return Boolean(known && known.base != null && known.loadBias != null
+    && known.programHeaderAddress != null);
+}
+
+function refreshDumpControls() {
+  const rceReady = window.notifyReady === true;
+  document.querySelectorAll(".dump-target").forEach((row) => {
+    const module = row.dataset.module;
+    const available = rceReady && dumpMetadataAvailable(module);
+    const dumpButton = row.querySelector(".dump-start");
+    const checkButton = row.querySelector(".dump-check");
+    if (dumpButton) dumpButton.disabled = dumpBusy || !available;
+    if (checkButton) checkButton.disabled = dumpBusy || !available;
+    if (!dumpBusy && !available) {
+      setDumpRowStatus(module, rceReady ? "loader required" : "RCE required", "");
+    }
+  });
+}
+window.refreshDumpControls = refreshDumpControls;
+
+document.querySelectorAll(".dump-speed").forEach((button) => {
+  button.onclick = () => {
+    if (dumpBusy) return;
+    dumpSpeed = button.dataset.speed || "low";
+    document.querySelectorAll(".dump-speed").forEach((item) => item.classList.toggle("active", item === button));
+    $("dumpStatus").textContent = "Selected " + dumpSpeed.toUpperCase() + ". One chunk and one receiver ACK at a time.";
+  };
+});
+
+function startSprxDump(module) {
+  if (dumpBusy || !window.notifyReady || !dumpMetadataAvailable(module)) {
+    $("dumpStatus").textContent = dumpBusy ? "A dump is already running."
+      : !window.notifyReady ? "Run the userland RCE first."
+      : "Verified module loader metadata is required.";
+    return;
+  }
+  dumpBusy = true;
+  refreshDumpControls();
+  setDumpRowStatus(module, dumpSpeed.toUpperCase() + " / starting", "run");
+  window.__DEEPSLOP_DUMP_REQUEST = {
+    module,
+    speed: dumpSpeed,
+    mode: "dump",
+    endpoint: $("dumpEndpoint").value.trim() || "/__deepslop/dump",
+  };
+  window.__DEEPSLOP_DUMP_PROMISE = null;
+  runPayload("sprx_dump").then(() => window.__DEEPSLOP_DUMP_PROMISE).finally(() => {
+    dumpBusy = false;
+    refreshDumpControls();
+  });
+}
+
+function checkSprxDump(module) {
+  if (dumpBusy || !window.notifyReady || !dumpMetadataAvailable(module)) {
+    $("dumpStatus").textContent = dumpBusy ? "A dump is already running."
+      : !window.notifyReady ? "Run the userland RCE first."
+      : "Verified module loader metadata is required.";
+    return;
+  }
+  dumpBusy = true;
+  refreshDumpControls();
+  setDumpRowStatus(module, "PREFLIGHT / checking", "run");
+  window.__DEEPSLOP_DUMP_REQUEST = {
+    module,
+    speed: dumpSpeed,
+    mode: "preflight",
+    endpoint: $("dumpEndpoint").value.trim() || "/__deepslop/dump",
+  };
+  window.__DEEPSLOP_DUMP_PROMISE = null;
+  runPayload("sprx_dump").then(() => window.__DEEPSLOP_DUMP_PROMISE).finally(() => {
+    dumpBusy = false;
+    refreshDumpControls();
+  });
+}
+document.querySelectorAll(".dump-target").forEach((row) => {
+  const module = row.dataset.module;
+  row.querySelector(".dump-check").onclick = () => checkSprxDump(module);
+  row.querySelector(".dump-start").onclick = () => startSprxDump(module);
+});
+refreshDumpControls();
+
 $("btnRun").onclick = () => startRun("full");
 $("btnProbe").onclick = () => startRun("probe");
 $("btnClearLog").onclick = () => { $("log").innerHTML = ""; };
 
 // Payload Dispatcher
-function runPayload(name) {
+let payloadManifestPromise = fetch("payloads/manifest.json?build=" + encodeURIComponent(BUILD_ID)
+  + "&_=" + Date.now()).then((response) => {
+    if (!response.ok) throw new Error("payload manifest request failed: " + response.status);
+    return response.json();
+  }).then((manifest) => {
+    if (!manifest || manifest.schemaVersion !== 1 || !Array.isArray(manifest.payloads))
+      throw new Error("payload manifest schema rejected");
+    return manifest;
+  });
+
+async function runPayload(name) {
   const cleanName = String(name || "").trim().replace(/\.js$/i, "");
-  recordAction("Payload: " + cleanName);
-  if (window.notifyReady !== true) { addLog("[WARN] Run exploit first"); return; }
   const resBox = $("payloadResult");
-  resBox.style.display = "block";
-  resBox.textContent = "Executing " + cleanName + "…";
-  
-  fetch("payloads/" + cleanName + ".js?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now())
-    .then(r => r.text())
-    .then(code => {
-      try {
-        const res = (0, eval)(code);
-        if (res && res.then) {
-          res.then(v => { resBox.textContent = v || "Operation completed"; clearActionState(); })
-            .catch(e => {
-              addLog("[ERR] " + cleanName + ": " + (e && e.message));
-              resBox.textContent = "Error: " + (e && e.message);
-              clearActionState();
-            });
-        } else {
-          resBox.textContent = res !== undefined ? String(res) : "Operation completed";
-          clearActionState();
-        }
-      } catch(e) {
-        addLog("[ERR] " + cleanName + ": " + (e && e.message));
-        resBox.textContent = "Error: " + (e && e.message);
-        clearActionState();
-      }
-    })
-    .catch(e => {
-      addLog("[ERR] " + cleanName + ": payload load failed: " + (e && e.message));
-      resBox.textContent = "Load error: " + (e && e.message);
+  if (window.notifyReady !== true) { addLog("[WARN] Run exploit first"); return; }
+  try {
+    const manifest = await payloadManifestPromise;
+    const spec = manifest.payloads.find((item) => item.name === cleanName);
+    if (!spec || !/^[a-z0-9_-]+\.js$/i.test(spec.file))
+      throw new Error("payload is not allowlisted");
+    if (String(fw) !== String(manifest.firmware.min)
+      || String(fw) !== String(manifest.firmware.max))
+      throw new Error("manifest is not valid for exact firmware " + fw);
+    if (spec.mode !== "read-only" && spec.mode !== "userland-safe")
+      throw new Error("payload safety mode rejected");
+    recordAction("Payload: " + cleanName);
+    resBox.style.display = "block";
+    resBox.textContent = "Starting " + cleanName + "...";
+    const script = document.createElement("script");
+    script.src = "payloads/" + spec.file + "?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now();
+    script.onload = () => {
+      addLog("[OK] Payload started: " + cleanName);
       clearActionState();
-    });
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    script.onerror = () => {
+      addLog("[ERR] " + cleanName + ": payload load failed");
+      resBox.textContent = "Load error: " + cleanName;
+      clearActionState();
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    document.body.appendChild(script);
+  } catch (error) {
+    addLog("[ERR] " + cleanName + ": " + String(error && error.message || error));
+    resBox.style.display = "block";
+    resBox.textContent = "Rejected: " + String(error && error.message || error);
+    clearActionState();
+  }
 }
 
 window.payOut = function(m) {
@@ -729,13 +1051,13 @@ window.payOut = function(m) {
   if (el) { el.style.display = "block"; el.textContent = m; }
 };
 
-$("btnSyscoreProbe").onclick = () => runPayload("syscore_connect_probe");
-$("btnSprxDumper").onclick = () => runPayload("sprx_dumper");
-$("btnFsprobe").onclick = () => runPayload("fsprobe");
-$("btnAvPlayer").onclick = () => runPayload("avplayer_test");
-$("btnShmProbe").onclick = () => runPayload("shm_probe");
+$("btnBaseline").onclick = () => runPayload("primitive_preflight");
+$("btnUserlandReport").onclick = () => runPayload("userland_report");
+$("btnModuleMap").onclick = () => runPayload("module_map");
+$("btnWorkerPreflight").onclick = () => runPayload("worker_preflight");
+$("btnSyscallDiscovery").onclick = () => runPayload("syscall_discovery");
 $("btnSysinfo").onclick = () => runPayload("sysinfo");
-$("btnIpmiFuzzer").onclick = () => runPayload("ipmi_fuzzer");
+$("btnMemoryIntegrity").onclick = () => runPayload("memory_integrity");
 $("btnXmlTest").onclick = () => runPayload("xml_test");
 
 $("btnRunSelectedPayload").onclick = () => {
@@ -801,10 +1123,6 @@ $("hexQuickJump").onchange = (e) => {
   if ($("hexAddr").value) $("btnReadMem").click();
 };
 
-$("btnSprxDumper").onclick = () => runPayload("sprx_dumper");
-$("btnXmlTest").onclick = () => runPayload("xml_test");
-
-
 // Hex Inspector
 function showHexViewer(title, bytes, baseAddr) {
   lastViewedBytes = bytes; lastViewedAddr = baseAddr || 0;
@@ -856,55 +1174,23 @@ $("btnTestSyscall").onclick = () => {
   } else addLog("[WARN] Baseline diagnostics unavailable; run exploit first");
 };
 
-// Corner Widget Event Handlers
-$("btnToggleCorner").onclick = () => {
-  const cw = $("cornerWidgetBody");
-  cw.style.display = (cw.style.display === "none") ? "block" : "none";
-};
-
-$("btnTestStub").onclick = () => {
-  if (typeof window.syscallClean === "function") {
-    addLog("[*] Testing 2-arg clean syscall (getpid)...");
-    const res = window.syscallClean("getpid", 0, 0);
-    addLog(`[INFO] Syscall return: ${JSON.stringify(res)}`);
-  } else {
-    addLog("[WARN] Exploit environment unavailable; run exploit first");
-  }
-};
-
-$("btnApply1320").onclick = () => {
-  const info = window.deepslopInfo || {};
-  const kb = info.kernelBase ? Number(info.kernelBase) : 0;
-  if (kb > 0 && typeof window.registerSyscallStub === "function") {
-    // 13.20 offsets (experimental for 13.60)
-    window.registerSyscallStub(0x14, kb + 0x1B860); // getpid
-    window.registerSyscallStub(0x06, kb + 0x1C310); // close
-    window.registerSyscallStub(0x2A, kb + 0x1B6B0); // pipe
-    window.registerSyscallStub(0x1B0, kb + 0x1BE80); // thr_self
-    addLog("[OK] Loaded FW 13.20 reference stubs (experimental on 13.60)");
-  } else {
-    addLog("[WARN] Exploit must be running before loading stubs");
-  }
-};
 </script>
-
-  <!-- Floating Corner Offsets & Diagnostics Widget -->
+  <!-- Static compatibility widget kept outside the exploit script region. It never loads
+       neighboring firmware offsets or a worker; the root launcher is the preferred UI. -->
   <div id="cornerWidget" style="position:fixed;bottom:16px;right:16px;background:rgba(10,15,30,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(56,189,248,0.4);border-radius:12px;padding:12px 14px;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.6);max-width:300px;font-size:11px;color:var(--text-main);font-family:ui-monospace, monospace">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px">
-      <span style="font-weight:700;color:var(--cyan)">⚡ FW 13.20 Reference Offsets</span>
-      <button id="btnToggleCorner" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px">_</button>
+      <span style="font-weight:700;color:var(--cyan)">Userland Status</span>
+      <button id="btnToggleCorner" onclick="var b=document.getElementById('cornerWidgetBody');b.style.display=b.style.display==='none'?'block':'none';" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px">_</button>
     </div>
     <div id="cornerWidgetBody">
-      <div style="font-size:10px;color:var(--amber);margin-bottom:6px">⚠ Note: 13.20 values (unverified on 13.60)</div>
+      <div style="font-size:10px;color:var(--amber);margin-bottom:6px">Exact FW 13.60 only. Kernel stages disabled.</div>
       <div style="line-height:1.6;color:var(--text-muted)">
-        <div>• <span style="color:#fff">getpid:</span> <span style="color:var(--emerald)">0x1B860</span></div>
-        <div>• <span style="color:#fff">close:</span> <span style="color:var(--emerald)">0x1C310</span></div>
-        <div>• <span style="color:#fff">pipe:</span> <span style="color:var(--emerald)">0x1B6B0</span></div>
-        <div>• <span style="color:#fff">thr_self:</span> <span style="color:var(--emerald)">0x1BE80</span></div>
+        <div>• userland RCE: <span style="color:var(--emerald)">preserved</span></div>
+        <div>• promoted R/W: <span style="color:var(--amber)">unverified</span></div>
       </div>
       <div style="margin-top:8px;display:flex;gap:6px">
-        <button class="btn" id="btnTestStub" style="padding:4px 8px;font-size:10px;flex:1">Test 2-Arg</button>
-        <button class="btn" id="btnApply1320" style="padding:4px 8px;font-size:10px;flex:1">Load 13.20</button>
+        <button class="btn" id="btnTestStub" onclick="if(typeof window.runBaselineDiagnostics==='function'){var r=window.runBaselineDiagnostics();if(window.addLog)window.addLog('[INFO] Baseline verdict: '+r.status);}else if(window.addLog)window.addLog('[WARN] Run exploit first');" style="padding:4px 8px;font-size:10px;flex:1">Baseline</button>
+        <a class="btn" id="btnApply1320" href="index.html" style="padding:4px 8px;font-size:10px;flex:1;text-align:center">Launcher</a>
       </div>
     </div>
   </div>

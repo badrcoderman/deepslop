@@ -40,56 +40,6 @@
     "estimated_duration_ms": 5000
   },
   {
-    "name": "mem-alloc-bench",
-    "version": "1.0.0",
-    "description": "Allocation throughput across sizes",
-    "category": "memory",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 10000
-  },
-  {
-    "name": "mem-gc-bench",
-    "version": "1.0.0",
-    "description": "GC pause detection and measurement",
-    "category": "memory",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 10000
-  },
-  {
-    "name": "mem-typed-array-bench",
-    "version": "1.0.0",
-    "description": "Typed array read/write throughput",
-    "category": "memory",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 5000
-  },
-  {
-    "name": "mem-arraybuffer-bench",
-    "version": "1.0.0",
-    "description": "ArrayBuffer transfers and cloning",
-    "category": "memory",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 5000
-  },
-  {
-    "name": "mem-pressure",
-    "version": "1.0.0",
-    "description": "Allocation ceiling to OOM",
-    "category": "memory",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 15000
-  },
-  {
     "name": "mem-heap-stats",
     "version": "1.0.0",
     "description": "performance.memory and manual estimates",
@@ -98,16 +48,6 @@
     "maximum_firmware": "99.99",
     "required_capabilities": [],
     "estimated_duration_ms": 2000
-  },
-  {
-    "name": "wk-jsc-bench",
-    "version": "1.0.0",
-    "description": "JSC JS micro-benchmarks",
-    "category": "webkit",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 15000
   },
   {
     "name": "wk-jit-detect",
@@ -230,16 +170,6 @@
     "estimated_duration_ms": 2000
   },
   {
-    "name": "gfx-canvas-bench",
-    "version": "1.0.0",
-    "description": "Canvas 2D rendering throughput",
-    "category": "graphics",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": ["Canvas2D"],
-    "estimated_duration_ms": 10000
-  },
-  {
     "name": "gfx-webgl-report",
     "version": "1.0.0",
     "description": "WebGL capabilities and limits",
@@ -248,16 +178,6 @@
     "maximum_firmware": "99.99",
     "required_capabilities": ["WebGL"],
     "estimated_duration_ms": 500
-  },
-  {
-    "name": "gfx-webgl-bench",
-    "version": "1.0.0",
-    "description": "WebGL rendering throughput",
-    "category": "graphics",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": ["WebGL"],
-    "estimated_duration_ms": 10000
   },
   {
     "name": "gfx-frame-bench",
@@ -278,35 +198,5 @@
     "maximum_firmware": "99.99",
     "required_capabilities": [],
     "estimated_duration_ms": 5000
-  },
-  {
-    "name": "proc-cpu-bench",
-    "version": "1.0.0",
-    "description": "Integer and FP arithmetic",
-    "category": "process",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 15000
-  },
-  {
-    "name": "proc-cap-matrix",
-    "version": "1.0.0",
-    "description": "Aggregate capability matrix",
-    "category": "process",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 1000
-  },
-  {
-    "name": "stab-exploit",
-    "version": "1.0.0",
-    "description": "Exploit stability harness",
-    "category": "stability",
-    "minimum_firmware": "9.00",
-    "maximum_firmware": "99.99",
-    "required_capabilities": [],
-    "estimated_duration_ms": 60000
   }
 ]

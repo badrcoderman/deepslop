@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "13.20": {
+      "firmware": "13.20",
+      "source": "pooP2JB/offsets/13.20.js",
+      "status": {
+        "userland": "offset-file",
+        "worker": "unavailable",
+        "kernel": "unavailable",
+        "p2jb": "unsupported"
+      },
+      "evidence": {
+        "hardwareTested": false,
+        "note": "Userland offset file exists; no complete worker or kernel profile is present."
+      }
+    },
+    "13.60": {
+      "firmware": "13.60",
+      "source": "deepslop/offsets/offsets.json",
+      "status": {
+        "userland": "hardware-reported",
+        "worker": "unavailable",
+        "kernel": "unavailable",
+        "p2jb": "unsupported"
+      },
+      "evidence": {
+        "hardwareTested": true,
+        "note": "WebKit userland RCE and getpid are operator-confirmed; no pooP2JB worker or kernel profile is claimed."
+      }
+    }
+  }
+}
