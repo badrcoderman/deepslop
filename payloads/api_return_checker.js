@@ -3,7 +3,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     const k = window.ps5kern;
     const log = (msg) => {
         if (window.addLog) window.addLog(msg);
-        console.log(msg);
+        if (typeof console !== "undefined" && console.log) console.log(msg);
     };
 
     log("[*] Initializing API Return Code & Flow Traversal Validator (Option 2)...");

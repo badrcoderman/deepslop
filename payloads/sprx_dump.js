@@ -21,6 +21,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
     };
     const MAX_MODULE = 0x800000;
     const MAX_PHDR_BYTES = 0x1000;
+    const FETCH_TIMEOUT_MS = 15000;
     const request = window.__DEEPSLOP_DUMP_REQUEST || {};
     const preflightOnly = request.mode === "preflight";
     delete window.__DEEPSLOP_DUMP_REQUEST;
@@ -125,7 +126,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
     }
 
     async function postJson(endpoint, body) {
-        const response = await fetch(endpoint, {
+        const response = await fetchWithTimeout(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
@@ -135,8 +136,20 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
         return response.json();
     }
 
+    async function fetchWithTimeout(url, options) {
+        let timer = 0;
+        const timeout = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error("network request timed out")), FETCH_TIMEOUT_MS);
+        });
+        try {
+            return await Promise.race([fetch(url, options), timeout]);
+        } finally {
+            if (timer && typeof clearTimeout === "function") clearTimeout(timer);
+        }
+    }
+
     async function pingReceiver(endpoint) {
-        const response = await fetch(endpoint + "/ping", { cache: "no-store" });
+        const response = await fetchWithTimeout(endpoint + "/ping", { cache: "no-store" });
         if (!response.ok) throw new Error("receiver ping returned HTTP " + response.status);
         const result = await response.json();
         if (!result || result.ok !== true) throw new Error("receiver ping was rejected");
@@ -235,7 +248,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
                 if (!validAddress(source)) throw new Error("chunk source address rejected");
                 const chunk = read(source, length);
                 if (!chunk || chunk.length !== length) throw new Error("chunk read failed at " + hex(source));
-                const response = await fetch(endpoint + "/chunk", {
+                const response = await fetchWithTimeout(endpoint + "/chunk", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/octet-stream",
@@ -281,5 +294,6 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = window.__DEEPSLOP_DUMP_PROMISE = (async () =
         if (typeof window.setDumpRowStatus === "function" && request.module)
             window.setDumpRowStatus(request.module, "STOPPED", "bad");
         out(message);
+        throw error;
     }
 })();

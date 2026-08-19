@@ -332,7 +332,14 @@
      stage, two actions, and a short status line before RCE succeeds. */
   body {
     align-items: center;
-    background: #0c0c0f;
+    background-color: #080c14;
+    background-image:
+      radial-gradient(ellipse at 50% -10%, rgba(59,130,246,.24) 0%, transparent 58%),
+      radial-gradient(ellipse at 100% 35%, rgba(139,92,246,.14) 0%, transparent 48%),
+      radial-gradient(ellipse at 0% 100%, rgba(6,182,212,.10) 0%, transparent 44%),
+      linear-gradient(135deg, #09111f 0%, #111b30 48%, #0a1221 100%);
+    background-attachment: fixed;
+    background-size: cover;
     display: flex;
     font: 22px/1.35 Arial, sans-serif;
     justify-content: center;
@@ -882,7 +889,14 @@ window.addExploitStatus = function(text, cls) {
 };
 
 // Load offsets table
-fetch("offsets/offsets.json?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now())
+if (String(fw) !== "13.60") {
+  $("status-banner").className = "bad";
+  $("status-text").textContent = "FW " + fw + " unsupported; exact FW 13.60 required";
+  $("sub-status").textContent = "LOCKED";
+  setRuntimeState("UNSUPPORTED FW", "Only exact FW 13.60 may execute this launcher");
+  $("btnRun").disabled = true;
+  $("btnProbe").disabled = true;
+} else fetch("offsets/offsets.json?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now())
   .then(r => r.json())
   .then(data => {
     //note: Never inherit a neighboring firmware's exploit offsets. Unsupported
@@ -902,6 +916,9 @@ fetch("offsets/offsets.json?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Dat
   }).catch(() => {
     $("status-banner").className = "bad";
     $("status-text").textContent = "Failed to load offsets table";
+    setRuntimeState("OFFSETS FAILED", "offset table could not be loaded");
+    $("btnRun").disabled = true;
+    $("btnProbe").disabled = true;
   });
 
 function startRun(mode) {
@@ -952,17 +969,22 @@ function startRun(mode) {
     expScript.src = "exploit.js?" + q.toString() + "&_=" + Date.now();
     expScript.onload = () => { addLog("[OK] Exploit engine executing"); };
     expScript.onerror = () => {
-    addLog("[ERR] Failed to load exploit.js");
+      addLog("[ERR] Failed to load exploit.js");
       setRuntimeState("RCE FAILED", "exploit.js failed to load");
       $("status-banner").className = "bad";
       $("status-text").textContent = "Exploit load error";
       isRunning = false;
       $("btnRun").disabled = false;
+      $("btnProbe").disabled = false;
     };
     document.body.appendChild(expScript);
   };
   s.onerror = () => {
     addLog("[ERR] Failed to load kernel-stubs.js");
+    setRuntimeState("RCE FAILED", "kernel-stubs.js failed to load");
+    isRunning = false;
+    $("btnRun").disabled = false;
+    $("btnProbe").disabled = false;
   };
   document.head.appendChild(s);
 }
@@ -1058,7 +1080,7 @@ function startSprxDump(module) {
     endpoint: $("dumpEndpoint").value.trim() || "/__deepslop/dump",
   };
   window.__DEEPSLOP_DUMP_PROMISE = null;
-  runPayload("sprx_dump").then(() => window.__DEEPSLOP_DUMP_PROMISE).finally(() => {
+  runPayload("sprx_dump").then(() => window.__DEEPSLOP_DUMP_PROMISE).catch(() => null).finally(() => {
     dumpBusy = false;
     refreshDumpControls();
   });
@@ -1081,7 +1103,7 @@ function checkSprxDump(module) {
     endpoint: $("dumpEndpoint").value.trim() || "/__deepslop/dump",
   };
   window.__DEEPSLOP_DUMP_PROMISE = null;
-  runPayload("sprx_dump").then(() => window.__DEEPSLOP_DUMP_PROMISE).finally(() => {
+  runPayload("sprx_dump").then(() => window.__DEEPSLOP_DUMP_PROMISE).catch(() => null).finally(() => {
     dumpBusy = false;
     refreshDumpControls();
   });
@@ -1108,9 +1130,14 @@ let payloadManifestPromise = fetch("payloads/manifest.json?build=" + encodeURICo
     return manifest;
   });
 
+let payloadBusy = false;
 async function runPayload(name) {
   const cleanName = String(name || "").trim().replace(/\.js$/i, "");
   const resBox = $("payloadResult");
+  if (payloadBusy) {
+    addLog("[WARN] Payload already running: " + cleanName);
+    return;
+  }
   if (window.notifyReady !== true) {
     addLog("[WARN] " + cleanName + ": run full RCE first");
     setRuntimeState("RCE REQUIRED", "payload rejected before execution");
@@ -1127,46 +1154,62 @@ async function runPayload(name) {
     if (spec.mode !== "read-only" && spec.mode !== "userland-safe")
       throw new Error("payload safety mode rejected");
     recordAction("Payload: " + cleanName);
+    payloadBusy = true;
     window.__DEEPSLOP_PAYLOAD_PROMISE = null;
     setRuntimeState("PAYLOAD RUNNING", cleanName);
     resBox.style.display = "block";
     resBox.textContent = "Starting " + cleanName + "...";
-    const script = document.createElement("script");
-    script.src = "payloads/" + spec.file + "?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now();
-    script.onload = () => {
-      if (script.parentNode) script.parentNode.removeChild(script);
-      const completion = window.__DEEPSLOP_PAYLOAD_PROMISE;
-      if (!completion || typeof completion.then !== "function") {
-        addLog("[OK] Payload loaded: " + cleanName);
-        setRuntimeState("PAYLOAD LOADED", cleanName + " did not expose a completion promise");
+    return await new Promise((resolve) => {
+      const script = document.createElement("script");
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        payloadBusy = false;
+        resolve(value);
+      };
+      script.src = "payloads/" + spec.file + "?build=" + encodeURIComponent(BUILD_ID) + "&_=" + Date.now();
+      script.onload = () => {
+        if (script.parentNode) script.parentNode.removeChild(script);
+        const completion = window.__DEEPSLOP_PAYLOAD_PROMISE;
+        if (!completion || typeof completion.then !== "function") {
+          addLog("[OK] Payload loaded: " + cleanName);
+          setRuntimeState("PAYLOAD LOADED", cleanName + " did not expose a completion promise");
+          clearActionState();
+          finish();
+          return;
+        }
+        addLog("[INFO] Payload running: " + cleanName);
+        completion.then((result) => {
+          if (result !== undefined && result !== null
+            && resBox.textContent === "Starting " + cleanName + "...")
+            resBox.textContent = String(result);
+          addLog("[OK] Payload complete: " + cleanName);
+          setRuntimeState("PAYLOAD COMPLETE", cleanName);
+          clearActionState();
+          finish(result);
+        }).catch((error) => {
+          const message = String(error && error.message || error);
+          addLog("[ERR] Payload failed: " + cleanName + ": " + message);
+          setRuntimeState("PAYLOAD FAILED", message);
+          if (!String(resBox.textContent || "").startsWith("SPRX DUMP STOPPED"))
+            resBox.textContent = "Payload failed: " + message;
+          clearActionState();
+          finish();
+        });
+      };
+      script.onerror = () => {
+        addLog("[ERR] " + cleanName + ": payload load failed");
+        setRuntimeState("PAYLOAD FAILED", cleanName + " failed to load");
+        resBox.textContent = "Load error: " + cleanName;
         clearActionState();
-        return;
-      }
-      addLog("[INFO] Payload running: " + cleanName);
-      completion.then((result) => {
-        if (result !== undefined && result !== null
-          && resBox.textContent === "Starting " + cleanName + "...")
-          resBox.textContent = String(result);
-        addLog("[OK] Payload complete: " + cleanName);
-        setRuntimeState("PAYLOAD COMPLETE", cleanName);
-        clearActionState();
-      }).catch((error) => {
-        const message = String(error && error.message || error);
-        addLog("[ERR] Payload failed: " + cleanName + ": " + message);
-        setRuntimeState("PAYLOAD FAILED", message);
-        resBox.textContent = "Payload failed: " + message;
-        clearActionState();
-      });
-    };
-    script.onerror = () => {
-      addLog("[ERR] " + cleanName + ": payload load failed");
-      setRuntimeState("PAYLOAD FAILED", cleanName + " failed to load");
-      resBox.textContent = "Load error: " + cleanName;
-      clearActionState();
-      if (script.parentNode) script.parentNode.removeChild(script);
-    };
-    document.body.appendChild(script);
+        if (script.parentNode) script.parentNode.removeChild(script);
+        finish();
+      };
+      document.body.appendChild(script);
+    });
   } catch (error) {
+    payloadBusy = false;
     addLog("[ERR] " + cleanName + ": " + String(error && error.message || error));
     resBox.style.display = "block";
     resBox.textContent = "Rejected: " + String(error && error.message || error);

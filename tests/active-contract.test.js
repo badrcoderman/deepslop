@@ -12,6 +12,7 @@ const exists = (file) => fs.existsSync(path.join(root, file));
 const page = read("index.html");
 const exploit = read("exploit.js");
 const sprxDump = read("payloads/sprx_dump.js");
+const hosting = read("HOSTING.md");
 const manifest = JSON.parse(read("payloads/manifest.json"));
 const researchManifest = JSON.parse(read("research/payloads/manifest.json"));
 
@@ -34,6 +35,10 @@ assert.ok(page.includes('id="dumpProgressFill"'));
 assert.ok(page.includes('id="btnClearRuntimeLog"'));
 assert.ok(page.includes('id="btnClearPayloadOutput"'));
 assert.ok(!page.includes('id="memoryProfile"'));
+assert.ok(!page.includes("background: #0c0c0f"));
+assert.ok(page.includes("radial-gradient(ellipse at 50% -10%"));
+assert.ok(hosting.includes("دليل استضافة DeepSlop"));
+assert.ok(hosting.includes("tools/sprx_dump_receiver.py"));
 assert.ok(page.includes("PREFLIGHT PASS"));
 for (const speed of ["low", "medium", "high"])
     assert.ok(page.includes('data-speed="' + speed + '"'), "missing dump speed: " + speed);
@@ -58,6 +63,8 @@ assert.ok(exploit.includes("deepslopModuleRegistry"));
 assert.ok(exploit.includes("memoryProfile"));
 assert.ok(exploit.includes("carrierSlots: 4500000"));
 assert.ok(exploit.includes("maxAttempts: 1"));
+assert.ok(exploit.includes("chunkLimit"));
+assert.ok(exploit.includes("address range exceeds userland bounds"));
 assert.ok(!exploit.includes('Q.get("auto") !== "0"'));
 assert.ok(!exploit.includes("MEMORY_PROFILES"));
 assert.ok(!exploit.includes('Q.get("profile")'));

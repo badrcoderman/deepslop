@@ -2,16 +2,16 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     // notification.js — Send on-screen PS5 notification from active Userland RCE
     const log = (msg) => {
         if (window.addLog) window.addLog(msg);
-        console.log(msg);
+        if (typeof console !== "undefined" && console.log) console.log(msg);
     };
 
     document.title = "PS5 RCE ACTIVE - " + new Date().toLocaleTimeString();
 
     try {
         const cap = document.getElementById("cap");
-        if (cap) cap.textContent = "RCE ACTIVE - Remote JS OK";
-        const status = document.getElementById("status");
-        if (status) { status.textContent = "Remote JS Connected"; status.className = "ok"; }
+        if (cap) cap.textContent = "RCE ACTIVE - local payloads only";
+        const status = document.getElementById("status-text");
+        if (status) status.textContent = "RCE ACTIVE / notification payload";
     } catch (e) {}
 
     const text = "PS5 RCE: Notification Payload Executed";
@@ -23,8 +23,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
             if (res && res.ok) sent = true;
         }
         if (!sent && typeof window.send_notification === "function") {
-            window.send_notification(text);
-            sent = true;
+            sent = window.send_notification(text) === true;
         }
     } catch (e) {
         log("[WARN] Notification send failed: " + (e && e.message));

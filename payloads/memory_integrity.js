@@ -27,7 +27,8 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
             check("WebKit base", info.webkitBase),
             check("kernel base", info.kernelBase),
         ];
-        const passed = checks.filter((item) => item.status !== "SKIP").every((item) => item.stable && item.nonzero);
+        const available = checks.filter((item) => item.status !== "SKIP");
+        const passed = available.length === checks.length && available.every((item) => item.stable && item.nonzero);
         const message = "MEMORY INTEGRITY " + (passed ? "PASS" : "WARN") + "\n" + JSON.stringify(checks, null, 2);
         log((passed ? "[OK] " : "[WARN] ") + message.replace(/\n/g, " "));
         out(message);

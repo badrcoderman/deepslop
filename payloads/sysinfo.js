@@ -17,6 +17,12 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     let pipe;
     try { pipe = k.pipe(); } catch (e) { pipe = { error: String(e && e.message || e) }; }
     out.push("pipe=" + (pipe && pipe.ok ? "fds[" + pipe.fds.join("/") + "]" : "unavailable:" + ((pipe && pipe.error) || "err")));
+    if (pipe && pipe.ok && Array.isArray(pipe.fds) && typeof k.close === "function") {
+        const closed = pipe.fds.map(function (fd) {
+            try { const result = k.close(fd); return result && result.ok !== false; } catch (e) { return false; }
+        });
+        out.push("pipe-close=" + (closed.every(Boolean) ? "PASS" : "INCOMPLETE"));
+    }
 
     let tid;
     try { tid = k.tid(); } catch (e) { tid = { error: String(e && e.message || e) }; }

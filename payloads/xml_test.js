@@ -4,7 +4,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     const k = window.ps5kern;
     const log = (msg) => {
         if (typeof window.addLog === "function") window.addLog(msg);
-        if (typeof console !== "undefined") console.log(msg);
+        if (typeof console !== "undefined" && console.log) console.log(msg);
     };
     const out = (msg) => { if (typeof window.payOut === "function") window.payOut(msg); };
     const hx = (v) => "0x" + BigInt(v).toString(16);
@@ -47,8 +47,9 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
             }
         }
 
-        const report = `XML_AUDIT: ${parserStatus} [DOMParser: ${parsedNodes} nodes, Memory: ${headerStatus}]`;
-        log("[OK] " + report);
+        const overall = parserStatus === "PASS" ? "PASS" : "INCOMPLETE";
+        const report = `XML_AUDIT: ${overall} [Parser: ${parserStatus}, DOMParser: ${parsedNodes} nodes, Memory: ${headerStatus}]`;
+        log((overall === "PASS" ? "[OK] " : "[WARN] ") + report);
         out(report);
 
         if (k && k.notify) {

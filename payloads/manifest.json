@@ -10,11 +10,11 @@
     { "name": "memory_integrity", "file": "memory_integrity.js", "mode": "read-only" },
     { "name": "resizable_arraybuffer_probe", "file": "resizable_arraybuffer_probe.js", "mode": "read-only" },
     { "name": "baseline_diagnostics", "file": "baseline_diagnostics.js", "mode": "read-only" },
-    { "name": "api_return_checker", "file": "api_return_checker.js", "mode": "read-only" },
-    { "name": "deepslop_info", "file": "deepslop_info.js", "mode": "read-only" },
+    { "name": "api_return_checker", "file": "api_return_checker.js", "mode": "userland-safe" },
+    { "name": "deepslop_info", "file": "deepslop_info.js", "mode": "userland-safe" },
     { "name": "notification", "file": "notification.js", "mode": "userland-safe" },
-    { "name": "sysinfo", "file": "sysinfo.js", "mode": "read-only" },
-    { "name": "xml_test", "file": "xml_test.js", "mode": "read-only" },
+    { "name": "sysinfo", "file": "sysinfo.js", "mode": "userland-safe" },
+    { "name": "xml_test", "file": "xml_test.js", "mode": "userland-safe" },
     { "name": "sprx_dump", "file": "sprx_dump.js", "mode": "userland-safe" }
   ]
 }

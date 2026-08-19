@@ -2,7 +2,7 @@ window.__DEEPSLOP_PAYLOAD_PROMISE = (async () => {
     // deepslop_info.js — complete status report (bases + scan offsets + memory)
     const log = (msg) => {
         if (window.addLog) window.addLog(msg);
-        console.log(msg);
+        if (typeof console !== "undefined" && console.log) console.log(msg);
     };
 
     log("[*] deepslop_info: generating report...");
